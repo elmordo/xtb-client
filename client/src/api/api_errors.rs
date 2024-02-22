@@ -160,14 +160,14 @@ impl FromStr for XtbErrorCode {
             "EX009" => Ok(XtbErrorCode::EX009),
             "EX010" => Ok(XtbErrorCode::EX010),
             "EX011" => Ok(XtbErrorCode::EX011),
-            v @ "BE020" | "BE021" | "BE022" | "BE023" | "BE024" | "BE025" | "BE026" | "BE027" | "BE028" | "BE029" | "BE030" | "BE031" | "BE032" | "BE033" | "BE034" | "BE035" | "BE036" | "BE037" | "BE099" => parse_other_error(v),
+            v @ ("BE020" | "BE021" | "BE022" | "BE023" | "BE024" | "BE025" | "BE026" | "BE027" | "BE028" | "BE029" | "BE030" | "BE031" | "BE032" | "BE033" | "BE034" | "BE035" | "BE036" | "BE037" | "BE099") => parse_other_error(v),
             v @ _ => Err(XtbErrorCodeError::UnsupportedErrorCode(v.to_owned())),
         }
     }
 }
 
 
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Error)]
 pub enum XtbErrorCodeError {
     #[error("The error code '{0}' is not supported by the 'xtb_client' library")]
     UnsupportedErrorCode(String),
@@ -238,6 +238,38 @@ impl fmt::Display for XtbErrorCode {
             XtbErrorCode::EX010 => f.write_str("EX010"),
             XtbErrorCode::EX011 => f.write_str("EX011"),
             XtbErrorCode::OtherError(c) => f.write_str(&format!("OtherError({})", c)),
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    mod other_error_parser {
+        use rstest::rstest;
+        use crate::api::api_errors::{parse_other_error, XtbErrorCode};
+
+        #[rstest]
+        #[case("BE020", 20)]
+        #[case("BE021", 21)]
+        #[case("BE022", 22)]
+        #[case("BE023", 23)]
+        #[case("BE024", 24)]
+        #[case("BE025", 25)]
+        #[case("BE026", 26)]
+        #[case("BE027", 27)]
+        #[case("BE028", 28)]
+        #[case("BE029", 29)]
+        #[case("BE030", 30)]
+        #[case("BE031", 31)]
+        #[case("BE032", 32)]
+        #[case("BE033", 33)]
+        #[case("BE034", 34)]
+        #[case("BE035", 35)]
+        #[case("BE036", 36)]
+        #[case("BE037", 37)]
+        fn parse_valid_value(#[case] input: &str, #[case] expected_code: u8) {
+            assert_eq!(parse_other_error(input), Ok(XtbErrorCode::OtherError(expected_code)));
         }
     }
 }
