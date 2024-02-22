@@ -82,7 +82,6 @@ pub enum XtbErrorCode {
     EX001,
     /// Internal error, in case of such error, please contact support
     EX002,
-    // .. SExxx does not appear, so the previous comment covers it
     /// Internal error, in case of such error, please contact support
     BE000,
     /// Internal error, request timed out
@@ -103,8 +102,10 @@ pub enum XtbErrorCode {
     EX010,
     /// You are not allowed to execute this command. For details please contact support.
     EX011,
-    /// Other error - BE20-37 and BE99
+    /// BE20-37 and BE99 - Other error
     OtherError(u8),
+    /// SExxx - Internal server error
+    InternalServerError(u16)
 }
 
 impl FromStr for XtbErrorCode {
@@ -161,6 +162,7 @@ impl FromStr for XtbErrorCode {
             "EX010" => Ok(XtbErrorCode::EX010),
             "EX011" => Ok(XtbErrorCode::EX011),
             v @ ("BE020" | "BE021" | "BE022" | "BE023" | "BE024" | "BE025" | "BE026" | "BE027" | "BE028" | "BE029" | "BE030" | "BE031" | "BE032" | "BE033" | "BE034" | "BE035" | "BE036" | "BE037" | "BE099") => parse_other_error(v),
+            v if v.starts_with("SE") => parse_se_error(v),
             v @ _ => Err(XtbErrorCodeError::UnsupportedErrorCode(v.to_owned())),
         }
     }
@@ -175,13 +177,24 @@ pub enum XtbErrorCodeError {
 
 
 
-fn parse_other_error(xtb_err_code: &str) -> Result<XtbErrorCode, XtbErrorCodeError> {
-    if !xtb_err_code.starts_with("BE0") || xtb_err_code.len() != 5 {
-        Err(XtbErrorCodeError::UnsupportedErrorCode(xtb_err_code.to_owned()))
+fn parse_other_error(err_str: &str) -> Result<XtbErrorCode, XtbErrorCodeError> {
+    if !err_str.starts_with("BE0") || err_str.len() != 5 {
+        Err(XtbErrorCodeError::UnsupportedErrorCode(err_str.to_owned()))
     } else {
-        let digits = &xtb_err_code[3..];
-        let c = u8::from_str(digits).map_err(|_| XtbErrorCodeError::UnsupportedErrorCode(xtb_err_code.to_owned()))?;
+        let digits = &err_str[3..];
+        let c = u8::from_str(digits).map_err(|_| XtbErrorCodeError::UnsupportedErrorCode(err_str.to_owned()))?;
         Ok(XtbErrorCode::OtherError(c))
+    }
+}
+
+
+fn parse_se_error(err_str: &str) -> Result<XtbErrorCode, XtbErrorCodeError> {
+    if !err_str.starts_with("SE") || err_str.len() != 5 {
+        Err(XtbErrorCodeError::UnsupportedErrorCode(err_str.to_owned()))
+    } else {
+        let digits = &err_str[2..];
+        let c = u16::from_str(digits).map_err(|_| XtbErrorCodeError::UnsupportedErrorCode(err_str.to_owned()))?;
+        Ok(XtbErrorCode::InternalServerError(c))
     }
 }
 
@@ -237,7 +250,8 @@ impl fmt::Display for XtbErrorCode {
             XtbErrorCode::EX009 => f.write_str("EX009"),
             XtbErrorCode::EX010 => f.write_str("EX010"),
             XtbErrorCode::EX011 => f.write_str("EX011"),
-            XtbErrorCode::OtherError(c) => f.write_str(&format!("OtherError({})", c)),
+            XtbErrorCode::OtherError(c) => f.write_str(&format!("BE{}", c)),
+            XtbErrorCode::InternalServerError(c) => f.write_str(&format!("SE{}", c)),
         }
     }
 }
