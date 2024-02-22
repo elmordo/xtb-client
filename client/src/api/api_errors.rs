@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fmt::Write;
 use std::str::FromStr;
+
 use thiserror::Error;
 
 /// Rust enum definition for error codes
@@ -261,7 +262,8 @@ impl fmt::Display for XtbErrorCode {
 mod tests {
     mod other_error_parser {
         use rstest::rstest;
-        use crate::api::api_errors::{parse_other_error, XtbErrorCode};
+
+        use crate::api::api_errors::{parse_other_error, XtbErrorCode, XtbErrorCodeError};
 
         #[rstest]
         #[case("BE020", 20)]
@@ -282,8 +284,43 @@ mod tests {
         #[case("BE035", 35)]
         #[case("BE036", 36)]
         #[case("BE037", 37)]
+        #[case("BE099", 99)]
         fn parse_valid_value(#[case] input: &str, #[case] expected_code: u8) {
             assert_eq!(parse_other_error(input), Ok(XtbErrorCode::OtherError(expected_code)));
+        }
+
+        #[rstest]
+        #[case("BE100")]
+        #[case("BE120")]
+        #[case("BEA20")]
+        #[case("BE030A")]
+        #[case("BE0300")]
+        fn parse_invalid_value(#[case] input: &str) {
+            assert_eq!(parse_other_error(input), Err(XtbErrorCodeError::UnsupportedErrorCode(input.to_owned())));
+        }
+    }
+
+    mod se_error_parser {
+        use rstest::rstest;
+
+        use crate::api::api_errors::{parse_se_error, XtbErrorCode, XtbErrorCodeError};
+
+        #[rstest]
+        #[case("SE000", 0)]
+        #[case("SE099", 99)]
+        #[case("SE100", 100)]
+        #[case("SE555", 555)]
+        #[case("SE999", 999)]
+        fn parse_valid_value(#[case] input: &str, #[case] expected_code: u16) {
+            assert_eq!(parse_se_error(input), Ok(XtbErrorCode::InternalServerError(expected_code)));
+        }
+
+        #[rstest]
+        #[case("SEE000")]
+        #[case("SEABC")]
+        #[case("SE0000")]
+        fn parse_invalid_value(#[case] input: &str) {
+            assert_eq!(parse_se_error(input), Err(XtbErrorCodeError::UnsupportedErrorCode(input.to_owned())));
         }
     }
 }
