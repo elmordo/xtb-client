@@ -10,3 +10,4 @@ thiserror = "^1.0.57"
 
 [dev-dependencies]
 rstest = "^0.18.2"
+rstest_reuse = "^0.6.0"

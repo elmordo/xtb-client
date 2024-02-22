@@ -251,8 +251,8 @@ impl fmt::Display for XtbErrorCode {
             XtbErrorCode::EX009 => f.write_str("EX009"),
             XtbErrorCode::EX010 => f.write_str("EX010"),
             XtbErrorCode::EX011 => f.write_str("EX011"),
-            XtbErrorCode::OtherError(c) => f.write_str(&format!("BE{}", c)),
-            XtbErrorCode::InternalServerError(c) => f.write_str(&format!("SE{}", c)),
+            XtbErrorCode::OtherError(c) => f.write_str(&format!("BE{:03}", c)),
+            XtbErrorCode::InternalServerError(c) => f.write_str(&format!("SE{:03}", c)),
         }
     }
 }
@@ -321,6 +321,101 @@ mod tests {
         #[case("SE0000")]
         fn parse_invalid_value(#[case] input: &str) {
             assert_eq!(parse_se_error(input), Err(XtbErrorCodeError::UnsupportedErrorCode(input.to_owned())));
+        }
+    }
+
+    mod xtb_error_operations {
+        use std::str::FromStr;
+        use rstest::{rstest};
+        use rstest_reuse::{self, *};
+        use crate::api::api_errors::XtbErrorCode;
+
+        #[template]
+        #[rstest]
+        #[case("BE001", XtbErrorCode::BE001)]
+        #[case("BE002", XtbErrorCode::BE002)]
+        #[case("BE003", XtbErrorCode::BE003)]
+        #[case("BE004", XtbErrorCode::BE004)]
+        #[case("BE005", XtbErrorCode::BE005)]
+        #[case("BE006", XtbErrorCode::BE006)]
+        #[case("BE007", XtbErrorCode::BE007)]
+        #[case("BE008", XtbErrorCode::BE008)]
+        #[case("BE009", XtbErrorCode::BE009)]
+        #[case("BE010", XtbErrorCode::BE010)]
+        #[case("BE011", XtbErrorCode::BE011)]
+        #[case("BE012", XtbErrorCode::BE012)]
+        #[case("BE013", XtbErrorCode::BE013)]
+        #[case("BE014", XtbErrorCode::BE014)]
+        #[case("BE016", XtbErrorCode::BE016)]
+        #[case("BE017", XtbErrorCode::BE017)]
+        #[case("BE018", XtbErrorCode::BE018)]
+        #[case("BE019", XtbErrorCode::BE019)]
+        #[case("BE094", XtbErrorCode::BE094)]
+        #[case("BE095", XtbErrorCode::BE095)]
+        #[case("BE096", XtbErrorCode::BE096)]
+        #[case("BE097", XtbErrorCode::BE097)]
+        #[case("BE098", XtbErrorCode::BE098)]
+        #[case("BE101", XtbErrorCode::BE101)]
+        #[case("BE102", XtbErrorCode::BE102)]
+        #[case("BE103", XtbErrorCode::BE103)]
+        #[case("BE104", XtbErrorCode::BE104)]
+        #[case("BE105", XtbErrorCode::BE105)]
+        #[case("BE106", XtbErrorCode::BE106)]
+        #[case("BE110", XtbErrorCode::BE110)]
+        #[case("BE115", XtbErrorCode::BE115)]
+        #[case("BE116", XtbErrorCode::BE116)]
+        #[case("BE117", XtbErrorCode::BE117)]
+        #[case("BE118", XtbErrorCode::BE118)]
+        #[case("BE200", XtbErrorCode::BE200)]
+        #[case("EX000", XtbErrorCode::EX000)]
+        #[case("EX001", XtbErrorCode::EX001)]
+        #[case("EX002", XtbErrorCode::EX002)]
+        #[case("BE000", XtbErrorCode::BE000)]
+        #[case("EX003", XtbErrorCode::EX003)]
+        #[case("EX004", XtbErrorCode::EX004)]
+        #[case("EX005", XtbErrorCode::EX005)]
+        #[case("EX006", XtbErrorCode::EX006)]
+        #[case("EX007", XtbErrorCode::EX007)]
+        #[case("EX008", XtbErrorCode::EX008)]
+        #[case("EX009", XtbErrorCode::EX009)]
+        #[case("EX010", XtbErrorCode::EX010)]
+        #[case("EX011", XtbErrorCode::EX011)]
+
+        #[case("BE020", XtbErrorCode::OtherError(20u8))]
+        #[case("BE021", XtbErrorCode::OtherError(21u8))]
+        #[case("BE022", XtbErrorCode::OtherError(22u8))]
+        #[case("BE023", XtbErrorCode::OtherError(23u8))]
+        #[case("BE024", XtbErrorCode::OtherError(24u8))]
+        #[case("BE025", XtbErrorCode::OtherError(25u8))]
+        #[case("BE026", XtbErrorCode::OtherError(26u8))]
+        #[case("BE027", XtbErrorCode::OtherError(27u8))]
+        #[case("BE028", XtbErrorCode::OtherError(28u8))]
+        #[case("BE029", XtbErrorCode::OtherError(29u8))]
+        #[case("BE030", XtbErrorCode::OtherError(30u8))]
+        #[case("BE031", XtbErrorCode::OtherError(31u8))]
+        #[case("BE032", XtbErrorCode::OtherError(32u8))]
+        #[case("BE033", XtbErrorCode::OtherError(33u8))]
+        #[case("BE034", XtbErrorCode::OtherError(34u8))]
+        #[case("BE035", XtbErrorCode::OtherError(35u8))]
+        #[case("BE036", XtbErrorCode::OtherError(36u8))]
+        #[case("BE037", XtbErrorCode::OtherError(37u8))]
+        #[case("BE099", XtbErrorCode::OtherError(99u8))]
+
+        #[case("SE000", XtbErrorCode::InternalServerError(0u16))]
+        #[case("SE099", XtbErrorCode::InternalServerError(99u16))]
+        #[case("SE100", XtbErrorCode::InternalServerError(100u16))]
+        #[case("SE555", XtbErrorCode::InternalServerError(555u16))]
+        #[case("SE999", XtbErrorCode::InternalServerError(999u16))]
+        fn variant_test_template(#[case] input: &str, #[case] variant: XtbErrorCode) {}
+
+        #[apply(variant_test_template)]
+        fn parse_from_str(#[case] input: &str, #[case] variant: XtbErrorCode) {
+            assert_eq!(XtbErrorCode::from_str(input), Ok(variant))
+        }
+
+        #[apply(variant_test_template)]
+        fn convert_to_str(#[case] input: &str, #[case] variant: XtbErrorCode) {
+            assert_eq!(format!("{}", variant), input.to_owned())
         }
     }
 }
