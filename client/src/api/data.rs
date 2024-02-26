@@ -1,7 +1,8 @@
 use std::ops::{Deref, DerefMut};
+use std::time::SystemTime;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
-use crate::api::enums::{ImpactLevel, MarginMode, ProfitMode, QuoteId, TimePeriod, TradingAction, TradingCommand, TransactionStatus, TransactionType};
+use crate::api::enums::{ImpactLevel, MarginMode, ProfitMode, QuoteId, TimePeriod, TradeStatus, TradingAction, TradingCommand, TransactionStatus, TransactionType};
 
 /// Structure representing user's login data
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
@@ -927,6 +928,285 @@ pub struct TradeTransactionStatusResponse {
 }
 
 
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetBalanceSubscribe;
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetBalanceUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetBalanceData {
+    /// Balance in account currency
+    pub balance: f64,
+    /// Credit in account currency
+    pub credit: f64,
+    /// Sum of balance and all profits in account currency
+    pub equity: f64,
+    /// Margin requirements
+    pub margin: f64,
+    /// Free margin
+    pub margin_free: f64,
+    /// Margin level percentage
+    pub margin_level: f64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetCandlesSubscribe {
+    /// Symbol
+    pub symbol: String,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetCandlesUnsubscribe {
+    /// Symbol
+    pub symbol: String,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetCandlesData {
+    /// Close price in base currency
+    pub close: f64,
+    /// Candle start time in CET time zone (Central European Time)
+    pub ctm: u64,
+    /// String representation of the ctm field
+    pub ctm_string: String,
+    /// Highest value in the given period in base currency
+    pub high: f64,
+    /// Lowest value in the given period in base currency
+    pub low: f64,
+    /// Open price in base currency
+    pub open: f64,
+    /// Source of price
+    pub quote_id: QuoteId,
+    /// Symbol
+    pub symbol: String,
+    /// Volume in lots
+    pub vol: f64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetKeepAliveSubscribe;
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetKeepAliveUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetKeepAliveData {
+    /// Current timestamp
+    pub timestamp: u64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetNewsSubscribe;
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetNewsUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetNewsData {
+    /// Body content of the news article
+    pub body: String,
+    /// Unique identifier for the news article
+    pub key: String,
+    /// Time of the news article
+    pub time: u64,
+    /// Title of the news article
+    pub title: String,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetProfitSubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetProfitUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetProfitData {
+    /// Order number
+    pub order: i32,
+    /// Transaction ID
+    pub order2: i32,
+    /// Position number
+    pub position: i32,
+    /// Profit in account currency
+    pub profit: f64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetTickPricesSubscribe {
+    /// Financial instrument symbol
+    pub symbol: String,
+    /// Minimal interval in milliseconds between any two consecutive updates. It is optional.
+    pub min_arrival_time: Option<u64>,
+    /// Specifies the maximum level of the quote that the user is interested in. It is optional.
+    pub max_level: Option<u64>,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetTickPricesUnsubscribe {
+    /// Financial instrument symbol
+    pub symbol: String,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetTickPricesData {
+    /// Ask price in base currency
+    pub ask: f64,
+    /// Number of available lots to buy at given price
+    pub ask_volume: Option<i32>,
+    /// Bid price in base currency
+    pub bid: f64,
+    /// Number of available lots to sell at given price
+    pub bid_volume: Option<i32>,
+    /// The highest price of the day in base currency
+    pub high: f64,
+    /// Price level
+    pub level: i32,
+    /// The lowest price of the day in base currency
+    pub low: f64,
+    /// Source of price
+    pub quote_id: QuoteId,
+    /// The difference between raw ask and bid prices
+    pub spread_raw: f64,
+    /// Spread representation
+    pub spread_table: f64,
+    /// Financial instrument symbol
+    pub symbol: String,
+    /// Time when the information was updated
+    pub timestamp: u64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetTradesSubscribe;
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetTradesUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetTradesData {
+    /// Close price in base currency
+    #[serde(rename = "close_price")]
+    pub close_price: f64,
+    /// Close time, null if order is not closed
+    #[serde(rename = "close_time")]
+    pub close_time: Option<u64>,
+    /// Is the order closed
+    pub closed: bool,
+    /// Operation code
+    pub cmd: TradingCommand,
+    /// Comment
+    pub comment: String,
+    /// Commission in account currency, null if not applicable
+    pub commission: Option<f64>,
+    /// Custom comment
+    pub custom_comment: String,
+    /// Number of decimal places
+    pub digits: i32,
+    /// Expiration time, null if order is not closed
+    pub expiration: Option<u64>,
+    /// Margin rate
+    #[serde(rename = "margin_rate")]
+    pub margin_rate: f64,
+    /// Trailing offset
+    pub offset: i32,
+    /// Open price in base currency
+    #[serde(rename = "open_price")]
+    pub open_price: f64,
+    /// Open time
+    #[serde(rename = "open_time")]
+    pub open_time: u64,
+    /// Order number for opened transaction
+    pub order: i32,
+    /// Transaction id
+    pub order2: i32,
+    /// Position number (if type is 0 and 2) or transaction parameter (if type is 1)
+    pub position: i32,
+    /// Profit, null unless the trade is closed (type=2) or opened (type=0)
+    pub profit: Option<f64>,
+    /// Stop loss amount, zero if not set (in base currency)
+    pub sl: f64,
+    /// Trade state, should be used for detecting pending order's cancellation
+    pub state: TradeStatus,
+    /// Storage
+    pub storage: f64,
+    /// Financial instrument symbol
+    pub symbol: String,
+    /// Take profit amount, zero if not set (in base currency)
+    pub tp: f64,
+    /// Type
+    pub type_: TransactionType,
+    /// Volume in lots
+    pub volume: f64,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetTradeStatusSubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamGetTradeStatusUnsubscribe;
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct StreamGetTradeStatusData {
+    /// The value the customer may provide in order to retrieve it later
+    pub custom_comment: String,
+    /// Message, can be null
+    pub message: Option<String>,
+    /// Unique order number
+    pub order: i32,
+    /// Price in base currency
+    pub price: f64,
+    /// Request status code
+    pub request_status: TransactionStatus,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct StreamPingSubscribe;
+
+
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
@@ -948,7 +1228,7 @@ mod tests {
         use rstest::rstest;
         use serde::{Deserialize, Serialize};
         use serde_json::{from_str, from_value, to_string, to_value};
-        use crate::api::data::{TradeTransactionStatusResponse, TradeTransactionStatusRequest, TradeTransactionResponse, TradeTransInfo, TradeTransactionRequest, GetVersionResponse, PingRequest, PingResponse, GetVersionRequest, TradingHoursRecord, HoursRecord, GetTradingHoursResponse, GetTradingHoursRequest, GetTradesHistoryRequest, GetTradesRequest, GetTradeRecordsResponse, TradeRecord, GetTradeRecordsRequest, GetTickPricesResponse, GetTickPricesRequest, GetSymbolRequest, GetStepRulesResponse, StepRuleRecord, StepRecord, GetStepRulesRequest, GetServerTimeRequest, GetServerTimeResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetNewsRequest, GetNewsResponse, NewsBodyRecord, GetMarginTradeRequest, GetMarginTradeResponse, GetMarginLevelRequest, GetMarginLevelResponse, IBRecord, GetIbsHistoryResponse, GetCurrentUserDataResponse, GetCurrentUserDataRequest, GetCommissionDefRequest, GetCommissionDefResponse, GetChartRangeRequestRequest, ChartRangeInfoRecord, GetChartLastRequestResponse, RateInfoRecord, ChartLastInfoRecord, GetChartLastRequestRequest, GetCalendarResponse, CalendarRecord, GetAllSymbolsRequest, GetAllSymbolsResponse, LoginRequest, LoginResponse, SymbolRecord, GetCalendarRequest};
+        use crate::api::data::{StreamPingSubscribe, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradesUnsubscribe, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTickPricesData, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetKeepAliveData, StreamGetNewsSubscribe, StreamGetNewsData, StreamGetNewsUnsubscribe, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetBalanceData, StreamGetCandlesData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, TradeTransactionStatusResponse, TradeTransactionStatusRequest, TradeTransactionResponse, TradeTransInfo, TradeTransactionRequest, GetVersionResponse, PingRequest, PingResponse, GetVersionRequest, TradingHoursRecord, HoursRecord, GetTradingHoursResponse, GetTradingHoursRequest, GetTradesHistoryRequest, GetTradesRequest, GetTradeRecordsResponse, TradeRecord, GetTradeRecordsRequest, GetTickPricesResponse, GetTickPricesRequest, GetSymbolRequest, GetStepRulesResponse, StepRuleRecord, StepRecord, GetStepRulesRequest, GetServerTimeRequest, GetServerTimeResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetNewsRequest, GetNewsResponse, NewsBodyRecord, GetMarginTradeRequest, GetMarginTradeResponse, GetMarginLevelRequest, GetMarginLevelResponse, IBRecord, GetIbsHistoryResponse, GetCurrentUserDataResponse, GetCurrentUserDataRequest, GetCommissionDefRequest, GetCommissionDefResponse, GetChartRangeRequestRequest, ChartRangeInfoRecord, GetChartLastRequestResponse, RateInfoRecord, ChartLastInfoRecord, GetChartLastRequestRequest, GetCalendarResponse, CalendarRecord, GetAllSymbolsRequest, GetAllSymbolsResponse, LoginRequest, LoginResponse, SymbolRecord, GetCalendarRequest, StreamGetTradeStatusData};
         use crate::api::data::tests::assert_all_keys;
 
         #[rstest]
@@ -992,6 +1272,18 @@ mod tests {
         #[case::TradeTransactionResponse_1(TradeTransactionResponse::default(), vec!["order"])]
         #[case::TradeTransactionStatusRequest_1(TradeTransactionStatusRequest::default(), vec!["order"])]
         #[case::TradeTransactionStatusResponse_1(TradeTransactionStatusResponse::default(), vec!["ask", "bid", "customComment", "message", "order", "requestStatus"])]
+        #[case::StreamGetBalanceData_1(StreamGetBalanceData::default(), vec!["balance", "credit", "equity", "margin", "marginFree", "marginLevel"])]
+        #[case::StreamGetCandlesData_1(StreamGetCandlesData::default(), vec!["close", "ctm", "ctmString", "high", "low", "open", "quoteId", "symbol", "vol"])]
+        #[case::StreamGetCandlesSubscribe_1(StreamGetCandlesSubscribe::default(), vec!["symbol"])]
+        #[case::StreamGetCandlesUnsubscribe_1(StreamGetCandlesUnsubscribe::default(), vec!["symbol"])]
+        #[case::StreamGetKeepAliveData_1(StreamGetKeepAliveData::default(), vec!["timestamp"])]
+        #[case::StreamGetNewsData_1(StreamGetNewsData::default(), vec!["body", "key", "time", "title"])]
+        #[case::StreamGetProfitData_1(StreamGetProfitData::default(), vec!["order", "order2", "position", "profit"])]
+        #[case::StreamGetTickPricesSubscribe_1(StreamGetTickPricesSubscribe::default(), vec!["symbol", "minArrivalTime", "maxLevel"])]
+        #[case::StreamGetTickPricesUnsubscribe_1(StreamGetTickPricesUnsubscribe::default(), vec!["symbol"])]
+        #[case::StreamGetTickPricesData_1(StreamGetTickPricesData::default(), vec!["ask", "askVolume", "bid", "bidVolume", "high", "level", "low", "quoteId", "spreadRaw", "spreadTable", "symbol", "timestamp"])]
+        #[case::StreamGetTradesData_1(StreamGetTradesData::default(), vec!["close_price", "close_time", "closed", "cmd", "comment", "commission", "customComment", "digits", "expiration", "margin_rate", "offset", "open_price", "open_time", "order", "order2", "position", "profit", "sl", "state", "storage", "symbol", "tp", "type", "volume"])]
+        #[case::StreamGetTradeStatusData_1(StreamGetTradeStatusData::default(), vec!["customComment", "message", "order", "price", "requestStatus"])]
         fn serialize_deserialize_payload_struct<T: Serialize + Clone + Default + Debug + PartialEq + for<'de> Deserialize<'de>>(#[case] original: T, #[case] keys: Vec<&str>) {
             let serialized_value = to_value(original.clone()).unwrap();
             assert_all_keys(&serialized_value, keys);
@@ -1010,6 +1302,19 @@ mod tests {
         #[case::GetVersionRequest_1(GetVersionRequest)]
         #[case::PingRequest_1(PingRequest)]
         #[case::PingResponse_1(PingResponse)]
+        #[case::StreamGetBalanceSubscribe_1(StreamGetBalanceSubscribe)]
+        #[case::StreamGetBalanceUnsubscribe_1(StreamGetBalanceUnsubscribe)]
+        #[case::StreamGetKeepAliveSubscribe_1(StreamGetKeepAliveSubscribe)]
+        #[case::StreamGetKeepAliveUnsubscribe_1(StreamGetKeepAliveUnsubscribe)]
+        #[case::StreamGetNewsSubscribe_1(StreamGetNewsSubscribe)]
+        #[case::StreamGetNewsUnsubscribe_1(StreamGetNewsUnsubscribe)]
+        #[case::StreamGetProfitSubscribe_1(StreamGetProfitSubscribe)]
+        #[case::StreamGetProfitUnsubscribe_1(StreamGetProfitUnsubscribe)]
+        #[case::StreamGetTradesSubscribe_1(StreamGetTradesSubscribe)]
+        #[case::StreamGetTradesUnsubscribe_1(StreamGetTradesUnsubscribe)]
+        #[case::StreamGetTradeStatusSubscribe_1(StreamGetTradeStatusSubscribe)]
+        #[case::StreamGetTradeStatusUnsubscribe_1(StreamGetTradeStatusUnsubscribe)]
+        #[case::StreamPingSubscribe_1(StreamPingSubscribe)]
         fn serialize_deserialize_logic_struct<T: Serialize + Clone + Default + Debug + PartialEq + for<'de> Deserialize<'de>>(#[case] original: T) {
             let serialized_value = to_value(original.clone()).unwrap();
             assert!(serialized_value.is_null());

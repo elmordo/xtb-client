@@ -172,6 +172,16 @@ pub enum TransactionType {
     Delete = 4,
 }
 
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TradeStatus {
+    /// Modified
+    #[default]
+    Modified,
+    /// Deleted
+    Deleted,
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -179,7 +189,7 @@ mod tests {
         use std::fmt::Debug;
         use rstest::rstest;
         use serde::{Deserialize, Serialize};
-        use crate::api::enums::{TransactionStatus, TransactionType, DayOfWeek, TradingCommand, QuoteId, MarginMode, ProfitMode, ImpactLevel, TimePeriod, TradingAction};
+        use crate::api::enums::{TradeStatus, TransactionStatus, TransactionType, DayOfWeek, TradingCommand, QuoteId, MarginMode, ProfitMode, ImpactLevel, TimePeriod, TradingAction};
         use serde_json::{from_value, to_value, Value};
 
         #[rstest]
@@ -239,6 +249,9 @@ mod tests {
         #[case::TransactionStatus_Pending(TransactionStatus::Pending, to_value(1).unwrap())]
         #[case::TransactionStatus_Accepted(TransactionStatus::Accepted, to_value(3).unwrap())]
         #[case::TransactionStatus_Rejected(TransactionStatus::Rejected, to_value(4).unwrap())]
+
+        #[case::TradeStatus_Rejected(TradeStatus::Modified, to_value("modified").unwrap())]
+        #[case::TradeStatus_Deleted(TradeStatus::Deleted, to_value("deleted").unwrap())]
         fn serialize_value<T: Serialize + Debug>(#[case] inp: T, #[case] expected: Value) {
             let serialized = to_value(inp).unwrap();
             assert_eq!(serialized, expected);
@@ -301,6 +314,9 @@ mod tests {
         #[case::TransactionStatus_Pending(TransactionStatus::Pending, to_value(1).unwrap())]
         #[case::TransactionStatus_Accepted(TransactionStatus::Accepted, to_value(3).unwrap())]
         #[case::TransactionStatus_Rejected(TransactionStatus::Rejected, to_value(4).unwrap())]
+
+        #[case::TradeStatus_Rejected(TradeStatus::Modified, to_value("modified").unwrap())]
+        #[case::TradeStatus_Deleted(TradeStatus::Deleted, to_value("deleted").unwrap())]
         fn deserialize_value<T: for<'de> Deserialize<'de> + Debug + PartialEq>(#[case] expected: T, #[case] inp: Value) {
             let deserialized: T = from_value(inp).unwrap();
             assert_eq!(deserialized, expected);
