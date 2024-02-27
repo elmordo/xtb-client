@@ -46,6 +46,9 @@ const TEST_LOGIN_REQUEST_MANDATORY: &'static str = r#"
 "#;
 
 
+// Note - added pipsPrecision field to payload from official documentation
+// This field was missing there and I think it is typo.
+// If it causes errors when this lib will be used to real server communication, fix must be done
 const TEST_SYMBOL_RECORD: &'static str = r#"
 {
 	"ask": 4000.0,
