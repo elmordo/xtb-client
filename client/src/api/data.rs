@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::time::SystemTime;
 use derive_setters::Setters;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use crate::api::enums::{ImpactLevel, MarginMode, ProfitMode, QuoteId, TimePeriod, TradeStatus, TradingAction, TradingCommand, TransactionStatus, TransactionType};
 
@@ -60,9 +61,9 @@ impl DerefMut for GetAllSymbolsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SymbolRecord {
     /// Ask price in base currency
-    pub ask: f32,
+    pub ask: Decimal,
     /// Bid price in base currency
-    pub bid: f32,
+    pub bid: Decimal,
     /// Category name
     pub category_name: String,
     /// Size of 1 lot
@@ -80,23 +81,23 @@ pub struct SymbolRecord {
     /// Symbol group name
     pub group_name: String,
     /// The highest price of the day in base currency
-    pub high: f32,
+    pub high: Decimal,
     /// Initial margin for 1 lot order, used for profit/margin calculation
     pub initial_margin: i64,
     /// Maximum instant volume multiplied by 100 (in lots)
     pub instant_max_volume: i64,
     /// Symbol leverage
-    pub leverage: f32,
+    pub leverage: Decimal,
     /// Long only
     pub long_only: bool,
     /// Maximum size of trade
-    pub lot_max: f32,
+    pub lot_max: Decimal,
     /// Minimum size of trade
-    pub lot_min: f32,
+    pub lot_min: Decimal,
     /// A value of minimum step by which the size of trade can be changed (within lotMin - lotMax range)
-    pub lot_step: f32,
+    pub lot_step: Decimal,
     /// The lowest price of the day in base currency
-    pub low: f32,
+    pub low: Decimal,
     /// Used for profit calculation
     pub margin_hedged: i64,
     /// For margin calculation
@@ -106,7 +107,7 @@ pub struct SymbolRecord {
     /// For margin calculation
     pub margin_mode: MarginMode,
     /// Percentage
-    pub percentage: f32,
+    pub percentage: Decimal,
     /// Number of symbol's pip decimal places
     pub pips_precision: i64,
     /// Number of symbol's price decimal places
@@ -118,9 +119,9 @@ pub struct SymbolRecord {
     /// Indicates whether short selling is allowed on the instrument
     pub short_selling: bool,
     /// The difference between raw ask and bid prices
-    pub spread_raw: f32,
+    pub spread_raw: Decimal,
     /// Spread representation
-    pub spread_table: f32,
+    pub spread_table: Decimal,
     /// Null if not applicable
     pub starting: Option<u64>,
     /// Appropriate step rule ID from getStepRules command response
@@ -133,17 +134,17 @@ pub struct SymbolRecord {
     /// Indicates whether swap value is added to position on end of day
     pub swap_enable: bool,
     /// Swap value for long positions in pips
-    pub swap_long: f32,
+    pub swap_long: Decimal,
     /// Swap value for short positions in pips
-    pub swap_short: f32,
+    pub swap_short: Decimal,
     /// Type of swap calculated
     pub swap_type: i64,
     /// Symbol name
     pub symbol: String,
     /// Smallest possible price change, used for profit/margin calculation, null if not applicable
-    pub tick_size: Option<f32>,
+    pub tick_size: Option<Decimal>,
     /// Value of smallest possible price change (in base currency), used for profit/margin calculation, null if not applicable
-    pub tick_value: Option<f32>,
+    pub tick_value: Option<Decimal>,
     /// Ask & bid tick time
     pub time: u64,
     /// Time in String
@@ -246,19 +247,19 @@ pub struct GetChartLastRequestResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RateInfoRecord {
     /// Value of close price (shift from open price)
-    pub close: f32,
+    pub close: Decimal,
     /// Candle start time in CET/CEST time zone (see Daylight Saving Time, DST)
     pub ctm: u64,
     /// String representation of the 'ctm' field
     pub ctm_string: String,
     /// Highest value in the given period (shift from open price)
-    pub high: f32,
+    pub high: Decimal,
     /// Lowest value in the given period (shift from open price)
-    pub low: f32,
+    pub low: Decimal,
     /// Open price (in base currency * 10 to the power of digits)
-    pub open: f32,
+    pub open: Decimal,
     /// Volume in lots
-    pub vol: f32,
+    pub vol: Decimal,
 }
 
 
@@ -302,7 +303,7 @@ pub struct GetCommissionDefRequest {
     /// Symbol
     pub symbol: String,
     /// Volume
-    pub volume: f32,
+    pub volume: Decimal,
 }
 
 
@@ -311,9 +312,9 @@ pub struct GetCommissionDefRequest {
 #[serde(rename_all = "camelCase")]
 struct GetCommissionDefResponse {
     /// Calculated commission in account currency, could be null if not applicable
-    commission: Option<f32>,
+    commission: Option<Decimal>,
     /// Rate of exchange between account currency and instrument base currency, could be null if not applicable
-    rate_of_exchange: Option<f32>,
+    rate_of_exchange: Option<Decimal>,
 }
 
 
@@ -337,7 +338,7 @@ pub struct GetCurrentUserDataResponse {
     /// This field should not be used. It is inactive and its value is always 1
     pub leverage: i64,
     /// The factor used for margin calculations. The actual value of leverage can be calculated by dividing this value by 100
-    pub leverage_multiplier: f32,
+    pub leverage_multiplier: Decimal,
     /// SpreadType, null if not applicable
     pub spread_type: Option<String>,
     /// Indicates whether this account is enabled to use trailing stop
@@ -383,13 +384,13 @@ impl DerefMut for GetIbsHistoryResponse {
 #[serde(rename_all = "camelCase")]
 pub struct IBRecord {
     /// IB close price or null if not allowed to view
-    pub close_price: Option<f32>,
+    pub close_price: Option<Decimal>,
     /// IB user login or null if not allowed to view
     pub login: Option<String>,
     /// IB nominal or null if not allowed to view
-    pub nominal: Option<f32>,
+    pub nominal: Option<Decimal>,
     /// IB open price or null if not allowed to view
-    pub open_price: Option<f32>,
+    pub open_price: Option<Decimal>,
     /// Operation code or null if not allowed to view
     pub side: Option<TradingAction>,
     /// IB user surname or null if not allowed to view
@@ -399,7 +400,7 @@ pub struct IBRecord {
     /// Time the record was created or null if not allowed to view
     pub timestamp: Option<u64>,
     /// Volume in lots or null if not allowed to view
-    pub volume: Option<f32>,
+    pub volume: Option<Decimal>,
 }
 
 
@@ -413,21 +414,21 @@ pub struct GetMarginLevelRequest;
 #[serde(rename_all = "camelCase")]
 pub struct GetMarginLevelResponse {
     /// Balance in account currency
-    pub balance: f32,
+    pub balance: Decimal,
     /// credit
-    pub credit: f32,
+    pub credit: Decimal,
     /// User currency
     pub currency: String,
     /// Sum of balance and all profits in account currency
-    pub equity: f32,
+    pub equity: Decimal,
     /// Margin requirements in account currency
-    pub margin: f32,
+    pub margin: Decimal,
     /// Free margin in account currency
     #[serde(rename = "margin_free")]
-    pub margin_free: f32,
+    pub margin_free: Decimal,
     /// Margin level percentage
     #[serde(rename = "margin_level")]
-    pub margin_level: f32,
+    pub margin_level: Decimal,
 }
 
 
@@ -438,7 +439,7 @@ pub struct GetMarginTradeRequest {
     /// Symbol
     pub symbol: String,
     /// volume
-    pub volume: f32,
+    pub volume: Decimal,
 }
 
 
@@ -448,7 +449,7 @@ pub struct GetMarginTradeRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GetMarginTradeResponse {
     /// Calculated margin in account currency
-    pub margin: f32,
+    pub margin: Decimal,
 }
 
 
@@ -508,15 +509,15 @@ pub struct NewsBodyRecord {
 #[serde(rename_all = "camelCase")]
 pub struct GetProfitCalculationRequest {
     /// Theoretical close price of order
-    pub close_price: f32,
+    pub close_price: Decimal,
     /// Operation code
     pub cmd: TradingCommand,
     /// Theoretical open price of order
-    pub open_price: f32,
+    pub open_price: Decimal,
     /// Symbol
     pub symbol: String,
     /// Volume
-    pub volume: f32,
+    pub volume: Decimal,
 }
 
 
@@ -526,7 +527,7 @@ pub struct GetProfitCalculationRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GetProfitCalculationResponse {
     /// Profit in account currency
-    pub profit: f32,
+    pub profit: Decimal,
 }
 
 
@@ -589,9 +590,9 @@ pub struct StepRuleRecord {
 #[serde(rename_all = "camelCase")]
 pub struct StepRecord {
     /// Lower border of the volume range
-    pub from_value: f32,
+    pub from_value: Decimal,
     /// LotStep value in the given volume range
-    pub step: f32,
+    pub step: Decimal,
 }
 
 
@@ -628,23 +629,23 @@ pub struct GetTickPricesRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GetTickPricesResponse {
     /// Ask price in base currency
-    pub ask: f32,
+    pub ask: Decimal,
     /// Number of available lots to buy at given price or None if not applicable
     pub ask_volume: Option<u32>,
     /// Bid price in base currency
-    pub bid: f32,
+    pub bid: Decimal,
     /// Number of available lots to sell at given price or None if not applicable
     pub bid_volume: Option<u32>,
     /// The highest price of the day in base currency
-    pub high: f32,
+    pub high: Decimal,
     /// Price level
     pub level: u32,
     /// The lowest price of the day in base currency
-    pub low: f32,
+    pub low: Decimal,
     /// The difference between raw ask and bid prices
-    pub spread_raw: f32,
+    pub spread_raw: Decimal,
     /// Spread representation
-    pub spread_table: f32,
+    pub spread_table: Decimal,
     /// Symbol
     pub symbol: String,
     /// Timestamp in UNIX time
@@ -688,7 +689,7 @@ impl DerefMut for GetTradeRecordsResponse {
 pub struct TradeRecord {
     /// Close price in base currency
     #[serde(rename = "close_price")]
-    pub close_price: f32,
+    pub close_price: Decimal,
     /// Null if order is not closed
     #[serde(rename = "close_time")]
     pub close_time: Option<u64>,
@@ -702,7 +703,7 @@ pub struct TradeRecord {
     /// Comment
     pub comment: String,
     /// Commission in account currency, null if not applicable
-    pub commission: Option<f32>,
+    pub commission: Option<Decimal>,
     /// The value the customer may provide in order to retrieve it later.
     pub custom_comment: String,
     /// Number of decimal places
@@ -712,12 +713,12 @@ pub struct TradeRecord {
     /// Null if order is not closed
     pub expiration_string: Option<String>,
     /// Margin rate
-    pub margin_rate: f32,
+    pub margin_rate: Decimal,
     /// Trailing offset
     pub offset: u32,
     /// Open price in base currency
     #[serde(rename = "open_price")]
-    pub open_price: f32,
+    pub open_price: Decimal,
     /// Open time
     #[serde(rename = "open_time")]
     pub open_time: u64,
@@ -731,19 +732,19 @@ pub struct TradeRecord {
     /// Order number common both for opened and closed transaction
     pub position: u32,
     /// Profit in account currency
-    pub profit: f32,
+    pub profit: Decimal,
     /// Zero if stop loss is not set (in base currency)
-    pub sl: f32,
+    pub sl: Decimal,
     /// Order swaps in account currency
-    pub storage: f32,
+    pub storage: Decimal,
     /// Symbol name or null for deposit/withdrawal operations
     pub symbol: Option<String>,
     /// Timestamp
     pub timestamp: u64,
     /// Zero if take profit is not set (in base currency)
-    pub tp: f32,
+    pub tp: Decimal,
     /// Volume in lots
-    pub volume: f32,
+    pub volume: Decimal,
 }
 
 
