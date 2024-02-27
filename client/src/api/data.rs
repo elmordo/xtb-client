@@ -310,7 +310,7 @@ pub struct GetCommissionDefRequest {
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
 #[setters(into, strip_option, prefix = "with_")]
 #[serde(rename_all = "camelCase")]
-struct GetCommissionDefResponse {
+pub struct GetCommissionDefResponse {
     /// Calculated commission in account currency, could be null if not applicable
     commission: Option<Decimal>,
     /// Rate of exchange between account currency and instrument base currency, could be null if not applicable
@@ -623,11 +623,19 @@ pub struct GetTickPricesRequest {
 }
 
 
-/// Structure representing market price data
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
 #[setters(into, strip_option, prefix = "with_")]
 #[serde(rename_all = "camelCase")]
 pub struct GetTickPricesResponse {
+    pub quotations: Vec<TickRecord>,
+}
+
+
+/// Structure representing market price data
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
+#[setters(into, strip_option, prefix = "with_")]
+#[serde(rename_all = "camelCase")]
+pub struct TickRecord {
     /// Ask price in base currency
     pub ask: Decimal,
     /// Number of available lots to buy at given price or None if not applicable
@@ -713,6 +721,7 @@ pub struct TradeRecord {
     /// Null if order is not closed
     pub expiration_string: Option<String>,
     /// Margin rate
+    #[serde(rename = "margin_rate")]
     pub margin_rate: Decimal,
     /// Trailing offset
     pub offset: u32,
@@ -1229,7 +1238,7 @@ mod tests {
         use rstest::rstest;
         use serde::{Deserialize, Serialize};
         use serde_json::{from_str, from_value, to_string, to_value};
-        use crate::api::data::{StreamPingSubscribe, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradesUnsubscribe, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTickPricesData, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetKeepAliveData, StreamGetNewsSubscribe, StreamGetNewsData, StreamGetNewsUnsubscribe, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetBalanceData, StreamGetCandlesData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, TradeTransactionStatusResponse, TradeTransactionStatusRequest, TradeTransactionResponse, TradeTransInfo, TradeTransactionRequest, GetVersionResponse, PingRequest, PingResponse, GetVersionRequest, TradingHoursRecord, HoursRecord, GetTradingHoursResponse, GetTradingHoursRequest, GetTradesHistoryRequest, GetTradesRequest, GetTradeRecordsResponse, TradeRecord, GetTradeRecordsRequest, GetTickPricesResponse, GetTickPricesRequest, GetSymbolRequest, GetStepRulesResponse, StepRuleRecord, StepRecord, GetStepRulesRequest, GetServerTimeRequest, GetServerTimeResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetNewsRequest, GetNewsResponse, NewsBodyRecord, GetMarginTradeRequest, GetMarginTradeResponse, GetMarginLevelRequest, GetMarginLevelResponse, IBRecord, GetIbsHistoryResponse, GetCurrentUserDataResponse, GetCurrentUserDataRequest, GetCommissionDefRequest, GetCommissionDefResponse, GetChartRangeRequestRequest, ChartRangeInfoRecord, GetChartLastRequestResponse, RateInfoRecord, ChartLastInfoRecord, GetChartLastRequestRequest, GetCalendarResponse, CalendarRecord, GetAllSymbolsRequest, GetAllSymbolsResponse, LoginRequest, LoginResponse, SymbolRecord, GetCalendarRequest, StreamGetTradeStatusData};
+        use crate::api::data::{GetTickPricesResponse, StreamPingSubscribe, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradesUnsubscribe, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTickPricesData, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetKeepAliveData, StreamGetNewsSubscribe, StreamGetNewsData, StreamGetNewsUnsubscribe, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetBalanceData, StreamGetCandlesData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, TradeTransactionStatusResponse, TradeTransactionStatusRequest, TradeTransactionResponse, TradeTransInfo, TradeTransactionRequest, GetVersionResponse, PingRequest, PingResponse, GetVersionRequest, TradingHoursRecord, HoursRecord, GetTradingHoursResponse, GetTradingHoursRequest, GetTradesHistoryRequest, GetTradesRequest, GetTradeRecordsResponse, TradeRecord, GetTradeRecordsRequest, TickRecord, GetTickPricesRequest, GetSymbolRequest, GetStepRulesResponse, StepRuleRecord, StepRecord, GetStepRulesRequest, GetServerTimeRequest, GetServerTimeResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetNewsRequest, GetNewsResponse, NewsBodyRecord, GetMarginTradeRequest, GetMarginTradeResponse, GetMarginLevelRequest, GetMarginLevelResponse, IBRecord, GetIbsHistoryResponse, GetCurrentUserDataResponse, GetCurrentUserDataRequest, GetCommissionDefRequest, GetCommissionDefResponse, GetChartRangeRequestRequest, ChartRangeInfoRecord, GetChartLastRequestResponse, RateInfoRecord, ChartLastInfoRecord, GetChartLastRequestRequest, GetCalendarResponse, CalendarRecord, GetAllSymbolsRequest, GetAllSymbolsResponse, LoginRequest, LoginResponse, SymbolRecord, GetCalendarRequest, StreamGetTradeStatusData};
         use crate::api::data::tests::assert_all_keys;
 
         #[rstest]
@@ -1259,9 +1268,10 @@ mod tests {
         #[case::StepRecord_1(StepRecord::default(), vec!["fromValue", "step"])]
         #[case::GetSymbolRequest_1(GetSymbolRequest::default(), vec!["symbol"])]
         #[case::GetTickPricesRequest_1(GetTickPricesRequest::default(), vec!["level", "symbols", "timestamp"])]
-        #[case::GetTickPricesResponse_1(GetTickPricesResponse::default(), vec!["ask", "askVolume", "bid", "bidVolume", "high", "level", "low", "spreadRaw", "spreadTable", "symbol", "timestamp"])]
+        #[case::GetTickPricesResponse_1(GetTickPricesResponse::default(), vec!["quotations"])]
+        #[case::TickRecord_1(TickRecord::default(), vec!["ask", "askVolume", "bid", "bidVolume", "high", "level", "low", "spreadRaw", "spreadTable", "symbol", "timestamp"])]
         #[case::GetTradeRecordsRequest_1(GetTradeRecordsRequest::default(), vec!["orders"])]
-        #[case::TradeRecord_1(TradeRecord::default(), vec!["close_price", "close_time", "close_timeString", "closed", "cmd", "comment", "commission", "customComment", "digits", "expiration", "expirationString", "marginRate", "offset", "open_price", "open_time", "open_timeString", "order", "order2", "position", "profit", "sl", "storage", "symbol", "timestamp", "tp", "volume"])]
+        #[case::TradeRecord_1(TradeRecord::default(), vec!["close_price", "close_time", "close_timeString", "closed", "cmd", "comment", "commission", "customComment", "digits", "expiration", "expirationString", "margin_rate", "offset", "open_price", "open_time", "open_timeString", "order", "order2", "position", "profit", "sl", "storage", "symbol", "timestamp", "tp", "volume"])]
         #[case::GetTradesRequest_1(GetTradesRequest::default(), vec!["openedOnly"])]
         #[case::GetTradesHistoryRequest_1(GetTradesHistoryRequest::default(), vec!["end", "start"])]
         #[case::GetTradingHoursRequest_1(GetTradingHoursRequest::default(), vec!["symbols"])]
