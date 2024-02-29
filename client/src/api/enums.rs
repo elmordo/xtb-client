@@ -1,4 +1,6 @@
-use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::fmt::Write;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Enum representing various types
@@ -172,7 +174,7 @@ pub enum TransactionType {
     Delete = 4,
 }
 
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TradeStatus {
     /// Modified
@@ -180,6 +182,39 @@ pub enum TradeStatus {
     Modified,
     /// Deleted
     Deleted,
+}
+
+
+// Implementation of custom Deserializer to allow case insensitive deserialization
+impl<'de> Deserialize<'de> for TradeStatus {
+    fn deserialize<D>(deserializer: D) -> Result<TradeStatus, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+        struct TradeStatusVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TradeStatusVisitor {
+            type Value = TradeStatus;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string representing TradeStatus")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<TradeStatus, E>
+                where
+                    E: serde::de::Error,
+            {
+                let lowercase_value = value.to_lowercase();
+                match lowercase_value.as_str() {
+                    "modified" => Ok(TradeStatus::Modified),
+                    "deleted" => Ok(TradeStatus::Deleted),
+                    _ => Err(serde::de::Error::unknown_variant(value, &["Modified", "Deleted"])),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(TradeStatusVisitor)
+    }
 }
 
 
@@ -316,7 +351,9 @@ mod tests {
         #[case::TransactionStatus_Rejected(TransactionStatus::Rejected, to_value(4).unwrap())]
 
         #[case::TradeStatus_Rejected(TradeStatus::Modified, to_value("modified").unwrap())]
+        #[case::TradeStatus_Rejected(TradeStatus::Modified, to_value("MODIFIED").unwrap())]
         #[case::TradeStatus_Deleted(TradeStatus::Deleted, to_value("deleted").unwrap())]
+        #[case::TradeStatus_Deleted(TradeStatus::Deleted, to_value("DELETED").unwrap())]
         fn deserialize_value<T: for<'de> Deserialize<'de> + Debug + PartialEq>(#[case] expected: T, #[case] inp: Value) {
             let deserialized: T = from_value(inp).unwrap();
             assert_eq!(deserialized, expected);

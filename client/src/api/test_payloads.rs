@@ -879,7 +879,7 @@ const TEST_STREAM_GET_TRADES_DATA: &'static str = r#"
 	"position": 1234567,
 	"profit": 68.392,
 	"sl": 0.0,
-	"state": "Modified",
+	"state": "modified",
 	"storage": -4.46,
 	"symbol": "EURUSD",
 	"tp": 0.0,
