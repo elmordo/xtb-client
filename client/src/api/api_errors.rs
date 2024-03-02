@@ -1,9 +1,7 @@
 use std::fmt;
-use std::fmt::Write;
 use std::str::FromStr;
-use serde::Deserialize;
-use serde_with::DeserializeFromStr;
 
+use serde_with::DeserializeFromStr;
 use thiserror::Error;
 
 /// Rust enum definition for error codes
@@ -329,9 +327,11 @@ mod tests {
 
     mod xtb_error_operations {
         use std::str::FromStr;
-        use rstest::{rstest};
+
+        use rstest::rstest;
         use rstest_reuse::{self, *};
         use serde_json::from_str;
+
         use crate::api::api_errors::XtbErrorCode;
 
         #[template]

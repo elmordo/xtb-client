@@ -1,5 +1,4 @@
 use std::fmt;
-use std::fmt::Write;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
