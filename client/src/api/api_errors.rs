@@ -1,13 +1,16 @@
 use std::fmt;
 use std::fmt::Write;
 use std::str::FromStr;
+use serde::Deserialize;
+use serde_with::DeserializeFromStr;
 
 use thiserror::Error;
 
 /// Rust enum definition for error codes
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, DeserializeFromStr, Default)]
 pub enum XtbErrorCode {
     /// Invalid price
+    #[default]
     BE001,
     /// Invalid StopLoss or TakeProfit
     BE002,
@@ -328,6 +331,7 @@ mod tests {
         use std::str::FromStr;
         use rstest::{rstest};
         use rstest_reuse::{self, *};
+        use serde_json::from_str;
         use crate::api::api_errors::XtbErrorCode;
 
         #[template]
@@ -416,6 +420,12 @@ mod tests {
         #[apply(variant_test_template)]
         fn convert_to_str(#[case] input: &str, #[case] variant: XtbErrorCode) {
             assert_eq!(format!("{}", variant), input.to_owned())
+        }
+
+        #[apply(variant_test_template)]
+        fn deserialize(#[case] input: &str, #[case] variant: XtbErrorCode) {
+            let deserialized: XtbErrorCode = from_str(&format!("\"{}\"", input)).unwrap();
+            assert_eq!(deserialized, variant)
         }
     }
 }
