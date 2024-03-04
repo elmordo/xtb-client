@@ -138,7 +138,7 @@ impl XtbConnection for BasicXtbConnection {
 /// Internal state shared between the ResponsePromise and BasicXtbConnection instance.
 /// This state is used to deliver response to the consumer.
 #[derive(Debug)]
-struct ResponsePromiseState {
+pub struct ResponsePromiseState {
     /// The response.
     ///
     /// * `None` - the response is not ready yet.
@@ -182,7 +182,7 @@ impl ResponsePromise {
     ///
     /// 1. instance of `Self`
     /// 2. thread safe `ResponsePromiseState` for response delivery.
-    fn new() -> (Self, Arc<Mutex<ResponsePromiseState>>) {
+    pub fn new() -> (Self, Arc<Mutex<ResponsePromiseState>>) {
         let state = ResponsePromiseState::new();
         let wrapped_state = Arc::new(Mutex::new(state));
         (Self { state: wrapped_state.clone() }, wrapped_state)
