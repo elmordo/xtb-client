@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 use url::Url;
 
-use crate::api::{ErrorResponse, Request, Response};
+use crate::api::{ErrorResponse, Request, Response, XtbErrorCodeError};
 
 /// Interface for XTB servers connectors.
 #[async_trait]
@@ -33,10 +33,14 @@ pub enum XtbConnectionError {
     CannotConnect(String),
     #[error("Cannot serialize command payload")]
     SerializationError(serde_json::Error),
+    #[error("Cannot deserialize response payload")]
+    DeserializationError(serde_json::Error),
     #[error("Cannot send request to the XTB server.")]
     CannotSendRequest(tokio_tungstenite::tungstenite::Error),
     #[error("The operation failed and server return error response")]
-    OperationFailed(ErrorResponse)
+    OperationFailed(ErrorResponse),
+    #[error("A response format is malformed: {0}")]
+    MalformedResponse(String)
 }
 
 
@@ -108,15 +112,22 @@ fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Erro
 
     let text_content = message.to_text().ok()?;
     let v: Value = from_str(text_content).ok()?;
-    let status = v.as_object()?.get("status")?.as_bool()?;
     let tag = v.as_object()?.get("customTag")?.as_str()?.to_owned();
+    Some((process_value(v), tag))
+}
 
-    let result = if status {
-        Ok(from_value(v).ok()?)
+
+fn process_value(value: Value) -> Result<Response, XtbConnectionError> {
+    let status = value
+        .as_object().ok_or_else(|| XtbConnectionError::MalformedResponse("Value is not object".to_string()))?
+        .get("status").ok_or_else(|| XtbConnectionError::MalformedResponse("The response 'status' field is missing".to_owned()))?
+        .as_bool().ok_or_else(|| XtbConnectionError::MalformedResponse("The response 'status' field is not boolean".to_owned()))?;
+
+    if status {
+        Ok(from_value(value).map_err(|err| XtbConnectionError::DeserializationError(err))?)
     } else {
-        Err(from_value(v).ok()?).map_err(|err| XtbConnectionError::OperationFailed(err))
-    };
-    Some((result, tag))
+        Err(from_value(value).map_err(|err| XtbConnectionError::DeserializationError(err))?).map_err(|err| XtbConnectionError::OperationFailed(err))
+    }
 }
 
 
