@@ -31,8 +31,6 @@ pub trait XtbConnection {
 pub enum XtbConnectionError {
     #[error("Cannot connect to server ({0}")]
     CannotConnect(String),
-    #[error("The stream session id is not set. Maybe login was not performed?")]
-    NoStreamSessionId,
     #[error("Cannot serialize command payload")]
     SerializationError(serde_json::Error),
     #[error("Cannot send request to the XTB server.")]
@@ -47,7 +45,6 @@ type Stream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// Common implementation of the `XtbConnection` trait.
 pub struct BasicXtbConnection {
     sink: SplitSink<Stream, Message>,
-    stream_session_id: Option<String>,
     tag_maker: TagMaker,
     promise_state_by_tag: Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>
 }
@@ -63,7 +60,6 @@ impl BasicXtbConnection {
 
         let instance = Self {
             sink,
-            stream_session_id: None,
             tag_maker: TagMaker::default(),
             promise_state_by_tag: Arc::new(Mutex::new(HashMap::new())),
         };
@@ -71,19 +67,14 @@ impl BasicXtbConnection {
         Ok(instance)
     }
 
-    fn build_request(&mut self, command: &str, payload: Option<Value>, is_stream: bool) -> Result<(Request, String), XtbConnectionError> {
+    fn build_request(&mut self, command: &str, payload: Option<Value>) -> (Request, String) {
         let tag = self.tag_maker.next();
 
-        let request = Request::default()
+        let r = Request::default()
             .with_command(command)
             .with_arguments(payload)
             .with_custom_tag(&tag);
-        if is_stream {
-            let ssi = self.stream_session_id.clone().ok_or(XtbConnectionError::NoStreamSessionId)?;
-            Ok((request.with_stream_session_id(ssi), tag))
-        } else {
-            Ok((request, tag))
-        }
+        (r, tag)
     }
 
     async fn run_listener(&self, mut stream: SplitStream<Stream>) {
@@ -131,7 +122,7 @@ fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Erro
 #[async_trait]
 impl XtbConnection for BasicXtbConnection {
     async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError> {
-        let (request, tag) = self.build_request(command, payload, false)?;
+        let (request, tag) = self.build_request(command, payload);
         let request_json = serde_json::to_string(&request).map_err(|err| XtbConnectionError::SerializationError(err))?;
         let message = Message::Text(request_json);
 
