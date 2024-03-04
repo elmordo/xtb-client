@@ -15,6 +15,7 @@ serde_repr = "^0.1.18"
 serde_with = "^3.6.1"
 rust_decimal = { version = "^1.34.3", features = ["serde_json", "serde-float"] }
 tokio = { version = "^1.36.0", features = ["rt", "sync"] }
+tracing = "0.1.40"
 tokio-tungstenite = { version = "^0.21.0", features = ["rustls"] }
 url = "^2.5.0"
 futures-util = "^0.3.30"

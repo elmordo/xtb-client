@@ -1,5 +1,5 @@
+use std::collections::HashMap;
 use std::future::Future;
-use std::ops::Deref;
 use std::pin::{Pin, pin};
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
@@ -7,20 +7,23 @@ use std::task::{Context, Poll, Waker};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use futures_util::stream::{SplitSink, SplitStream};
-use serde_json::Value;
+use serde_json::{from_str, from_value, Value};
 use thiserror::Error;
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use tokio::spawn;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tokio_tungstenite::tungstenite::Message;
+use tracing::error;
 use url::Url;
 
 use crate::api::{ErrorResponse, Request, Response};
 
+/// Interface for XTB servers connectors.
 #[async_trait]
 pub trait XtbConnection {
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<Response, XtbConnectionError>;
+    /// Send standard command to the server.
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError>;
 }
 
 
@@ -37,55 +40,106 @@ pub enum XtbConnectionError {
 }
 
 
+/// Helper type making variable and field declaration shorter.
 type Stream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 
+/// Common implementation of the `XtbConnection` trait.
 pub struct BasicXtbConnection {
     sink: SplitSink<Stream, Message>,
-    stream: SplitStream<Stream>,
     stream_session_id: Option<String>,
     tag_maker: TagMaker,
+    promise_state_by_tag: Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>
 }
 
 
 impl BasicXtbConnection {
+    /// Create new instance from server url
     pub async fn new(host: Url) -> Result<Self, XtbConnectionError> {
         let host_clone = host.as_str().to_owned();
         let (conn, _) = connect_async(host).await.map_err(|_| XtbConnectionError::CannotConnect(host_clone))?;
 
         let (sink, stream) = conn.split();
 
-        Ok(Self {
+        let instance = Self {
             sink,
-            stream,
             stream_session_id: None,
             tag_maker: TagMaker::default(),
-        })
+            promise_state_by_tag: Arc::new(Mutex::new(HashMap::new())),
+        };
+        instance.run_listener(stream).await;
+        Ok(instance)
     }
 
-    fn build_request(&mut self, command: &str, payload: Option<Value>, is_stream: bool) -> Result<Request, XtbConnectionError> {
+    fn build_request(&mut self, command: &str, payload: Option<Value>, is_stream: bool) -> Result<(Request, String), XtbConnectionError> {
+        let tag = self.tag_maker.next();
+
         let request = Request::default()
             .with_command(command)
             .with_arguments(payload)
-            .with_custom_tag(self.tag_maker.next());
+            .with_custom_tag(&tag);
         if is_stream {
             let ssi = self.stream_session_id.clone().ok_or(XtbConnectionError::NoStreamSessionId)?;
-            Ok(request.with_stream_session_id(ssi))
+            Ok((request.with_stream_session_id(ssi), tag))
         } else {
-            Ok(request)
+            Ok((request, tag))
         }
+    }
+
+    async fn run_listener(&self, mut stream: SplitStream<Stream>) {
+        let lookup = self.promise_state_by_tag.clone();
+        spawn(async move {
+            while let Some(message) = stream.next().await {
+                let (response, tag) = match process_message(message) {
+                    Some((r, t)) => (r, t),
+                    None => continue,
+                };
+
+                if let Some(state) = lookup.lock().await.remove(&tag) {
+                    state.lock().await.set_response(response);
+                }
+            }
+        });
     }
 }
 
 
+fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Error>) -> Option<(Result<Response, ErrorResponse>, String)> {
+    let message = match message {
+        Ok(msg) => msg,
+        Err(err) => {
+            error!("Error when receiving message: {:?}", err);
+            return None;
+        }
+    };
+
+    let text_content = message.to_text().ok()?;
+    let v: Value = from_str(text_content).ok()?;
+    let status = v.as_object()?.get("status")?.as_bool()?;
+    let tag = v.as_object()?.get("customTag")?.as_str()?.to_owned();
+
+    let result = if status {
+        Ok(from_value(v).ok()?)
+    } else {
+        Err(from_value(v).ok()?)
+    };
+    Some((result, tag))
+}
+
+
+
 #[async_trait]
 impl XtbConnection for BasicXtbConnection {
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<Response, XtbConnectionError> {
-        let request = self.build_request(command, payload, false)?;
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError> {
+        let (request, tag) = self.build_request(command, payload, false)?;
         let request_json = serde_json::to_string(&request).map_err(|err| XtbConnectionError::SerializationError(err))?;
         let message = Message::Text(request_json);
+
+        let (promise, state) = ResponsePromise::new();
+        self.promise_state_by_tag.lock().await.insert(tag, state);
         self.sink.send(message).await.map_err(|err| XtbConnectionError::CannotSendRequest(err))?;
-        todo!()
+
+        Ok(promise)
     }
 }
 
@@ -121,22 +175,23 @@ impl ResponsePromiseState {
 }
 
 
-#[derive(Debug)]
-pub struct ResponsePromise {
-    state: Arc<Mutex<ResponsePromiseState>>,
-}
-
-
 /// Represent promise of a response delivery in a future.
 ///
 /// Implements the `Future` trait and when the future is awaited, it is resolved by response
 /// returned from a server. The response is type of `Result<Response, ErrorResponse>`.
+#[derive(Debug)]
+pub struct ResponsePromise {
+    /// Shared internal state. The second "point" is in the source connection.
+    state: Arc<Mutex<ResponsePromiseState>>,
+}
+
+
 impl ResponsePromise {
     /// Create new instance and return tuple:
     ///
     /// 1. instance of `Self`
     /// 2. thread safe `ResponsePromiseState` for response delivery.
-    pub fn new() -> (Self, Arc<Mutex<ResponsePromiseState>>) {
+    fn new() -> (Self, Arc<Mutex<ResponsePromiseState>>) {
         let state = ResponsePromiseState::new();
         let wrapped_state = Arc::new(Mutex::new(state));
         (Self { state: wrapped_state.clone() }, wrapped_state)
