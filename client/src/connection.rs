@@ -35,6 +35,8 @@ pub enum XtbConnectionError {
     SerializationError(serde_json::Error),
     #[error("Cannot send request to the XTB server.")]
     CannotSendRequest(tokio_tungstenite::tungstenite::Error),
+    #[error("The operation failed and server return error response")]
+    OperationFailed(ErrorResponse)
 }
 
 
@@ -95,7 +97,7 @@ impl BasicXtbConnection {
 }
 
 
-fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Error>) -> Option<(Result<Response, ErrorResponse>, String)> {
+fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Error>) -> Option<(Result<Response, XtbConnectionError>, String)> {
     let message = match message {
         Ok(msg) => msg,
         Err(err) => {
@@ -112,7 +114,7 @@ fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Erro
     let result = if status {
         Ok(from_value(v).ok()?)
     } else {
-        Err(from_value(v).ok()?)
+        Err(from_value(v).ok()?).map_err(|err| XtbConnectionError::OperationFailed(err))
     };
     Some((result, tag))
 }
@@ -143,7 +145,7 @@ pub struct ResponsePromiseState {
     ///
     /// * `None` - the response is not ready yet.
     /// * `Some(response)` - the response is ready to be delivered.
-    response: Option<Result<Response, ErrorResponse>>,
+    response: Option<Result<Response, XtbConnectionError>>,
     /// If the `ResponsePromise` was palled, the `Waker` is stored here.
     /// When response is set and the waker is set, the waker is called.
     waker: Option<Waker>,
@@ -157,7 +159,7 @@ impl ResponsePromiseState {
     }
 
     /// Set response. If a waker is set in the state, it is notified.
-    pub fn set_response(&mut self, response: Result<Response, ErrorResponse>) {
+    pub fn set_response(&mut self, response: Result<Response, XtbConnectionError>) {
         self.response = Some(response);
         if let Some(waker) = self.waker.take() {
             waker.wake();
@@ -191,7 +193,7 @@ impl ResponsePromise {
 
 
 impl Future for ResponsePromise {
-    type Output = Result<Response, ErrorResponse>;
+    type Output = Result<Response, XtbConnectionError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Try to get the lock
