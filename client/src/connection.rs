@@ -7,17 +7,16 @@ use std::task::{Context, Poll, Waker};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use futures_util::stream::{SplitSink, SplitStream};
-use serde_json::{Value};
+use serde_json::Value;
 use thiserror::Error;
-use tokio::net::TcpStream;
-use tokio::spawn;
 use tokio::sync::Mutex;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{connect_async};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 use url::Url;
 
-use crate::api::{Request};
+use crate::api::Request;
+use crate::listener::{listen_for_responses, ResponseHandler, Stream};
 use crate::message_processing;
 use crate::message_processing::ProcessedMessage;
 
@@ -38,10 +37,6 @@ pub enum XtbConnectionError {
     #[error("Cannot send request to the XTB server.")]
     CannotSendRequest(tokio_tungstenite::tungstenite::Error),
 }
-
-
-/// Helper type making variable and field declaration shorter.
-type Stream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 
 /// Common implementation of the `XtbConnection` trait.
@@ -65,7 +60,7 @@ impl BasicXtbConnection {
             tag_maker: TagMaker::default(),
             promise_state_by_tag: Arc::new(Mutex::new(HashMap::new())),
         };
-        instance.run_listener(stream).await;
+        instance.run_listener(stream);
         Ok(instance)
     }
 
@@ -82,49 +77,38 @@ impl BasicXtbConnection {
     }
 
     /// Spawn a tokio task listening for server data
-    async fn run_listener(&self, mut stream: SplitStream<Stream>) {
-        let lookup = self.promise_state_by_tag.clone();
-        spawn(async move {
-            // Read messages until some is delivered
-            while let Some(message_result) = stream.next().await {
-                let message = match message_result {
-                    Ok(msg) => msg,
-                    Err(err) => {
-                        error!("Error when receiving message: {:?}", err);
-                        continue;
-                    }
-                };
-                // process message
-                let response = match message_processing::process_message(message) {
-                    Ok(response) => response,
-                    Err(err) => {
-                        error!("Cannot process response: {:?}", err);
-                        continue
-                    },
-                };
-                // extract a tag from response
-                let maybe_tag = match &response {
-                    ProcessedMessage::Response(resp) => resp.custom_tag.as_ref(),
-                    ProcessedMessage::ErrorResponse(resp) => resp.custom_tag.as_ref(),
-                };
-
-                // if there is no tag, continue (the message cannot be routed to consumer)
-                let tag = match maybe_tag {
-                    Some(t) => t,
-                    _ => {
-                        warn!("Response has no tag and cannot be routed: {:?}", response);
-                        continue;
-                    }
-                };
-
-                // try to deliver message to its consumer
-                if let Some(state) = lookup.lock().await.remove(tag) {
-                    state.lock().await.set_result(Ok(response));
-                }
-            }
-        });
+    fn run_listener(&self, stream: SplitStream<Stream>) {
+        listen_for_responses(stream, LocalResponseHandler(self.promise_state_by_tag.clone()));
     }
 }
+
+
+struct LocalResponseHandler(Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>);
+
+#[async_trait]
+impl ResponseHandler for LocalResponseHandler {
+    async fn handle_response(&self, response: ProcessedMessage) {
+        let maybe_tag = match &response {
+            ProcessedMessage::Response(resp) => resp.custom_tag.as_ref(),
+            ProcessedMessage::ErrorResponse(resp) => resp.custom_tag.as_ref(),
+        };
+
+        // if there is no tag, continue (the message cannot be routed to consumer)
+        let tag = match maybe_tag {
+            Some(t) => t,
+            _ => {
+                warn!("Response has no tag and cannot be routed: {:?}", response);
+                return;
+            }
+        };
+
+        // try to deliver message to its consumer
+        if let Some(state) = self.0.lock().await.remove(tag) {
+            state.lock().await.set_result(Ok(response));
+        }
+    }
+}
+
 
 
 #[async_trait]
