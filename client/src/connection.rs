@@ -10,6 +10,7 @@ use futures_util::stream::{SplitSink, SplitStream};
 use serde_json::Value;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
@@ -43,7 +44,8 @@ pub enum XtbConnectionError {
 pub struct BasicXtbConnection {
     sink: SplitSink<Stream, Message>,
     tag_maker: TagMaker,
-    promise_state_by_tag: Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>
+    promise_state_by_tag: Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>,
+    listener_join: JoinHandle<()>,
 }
 
 
@@ -54,13 +56,14 @@ impl BasicXtbConnection {
         let (conn, _) = connect_async(host).await.map_err(|_| XtbConnectionError::CannotConnect(host_clone))?;
 
         let (sink, stream) = conn.split();
-
+        let lookup = Arc::new(Mutex::new(HashMap::new()));
+        let listener_join = listen_for_responses(stream, BasicConnectionResponseHandler(lookup.clone()));
         let instance = Self {
             sink,
             tag_maker: TagMaker::default(),
-            promise_state_by_tag: Arc::new(Mutex::new(HashMap::new())),
+            promise_state_by_tag: lookup,
+            listener_join
         };
-        instance.run_listener(stream);
         Ok(instance)
     }
 
@@ -74,38 +77,6 @@ impl BasicXtbConnection {
             .with_arguments(payload)
             .with_custom_tag(&tag);
         (r, tag)
-    }
-
-    /// Spawn a tokio task listening for server data
-    fn run_listener(&self, stream: SplitStream<Stream>) {
-        listen_for_responses(stream, LocalResponseHandler(self.promise_state_by_tag.clone()));
-    }
-}
-
-
-struct LocalResponseHandler(Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>);
-
-#[async_trait]
-impl ResponseHandler for LocalResponseHandler {
-    async fn handle_response(&self, response: ProcessedMessage) {
-        let maybe_tag = match &response {
-            ProcessedMessage::Response(resp) => resp.custom_tag.as_ref(),
-            ProcessedMessage::ErrorResponse(resp) => resp.custom_tag.as_ref(),
-        };
-
-        // if there is no tag, continue (the message cannot be routed to consumer)
-        let tag = match maybe_tag {
-            Some(t) => t,
-            _ => {
-                warn!("Response has no tag and cannot be routed: {:?}", response);
-                return;
-            }
-        };
-
-        // try to deliver message to its consumer
-        if let Some(state) = self.0.lock().await.remove(tag) {
-            state.lock().await.set_result(Ok(response));
-        }
     }
 }
 
@@ -123,6 +94,14 @@ impl XtbConnection for BasicXtbConnection {
         self.sink.send(message).await.map_err(XtbConnectionError::CannotSendRequest)?;
 
         Ok(promise)
+    }
+}
+
+
+impl Drop for BasicXtbConnection {
+    fn drop(&mut self) {
+        /// Stop the listening task
+        self.listener_join.abort();
     }
 }
 
@@ -148,6 +127,34 @@ impl ResponsePromiseState {
         self.result = Some(result);
         if let Some(waker) = self.waker.take() {
             waker.wake();
+        }
+    }
+}
+
+
+/// Handle messages delivered by XTB server
+struct BasicConnectionResponseHandler(Arc<Mutex<HashMap<String, Arc<Mutex<ResponsePromiseState>>>>>);
+
+#[async_trait]
+impl ResponseHandler for BasicConnectionResponseHandler {
+    async fn handle_response(&self, response: ProcessedMessage) {
+        let maybe_tag = match &response {
+            ProcessedMessage::Response(resp) => resp.custom_tag.as_ref(),
+            ProcessedMessage::ErrorResponse(resp) => resp.custom_tag.as_ref(),
+        };
+
+        // if there is no tag, continue (the message cannot be routed to consumer)
+        let tag = match maybe_tag {
+            Some(t) => t,
+            _ => {
+                warn!("Response has no tag and cannot be routed: {:?}", response);
+                return;
+            }
+        };
+
+        // try to deliver message to its consumer
+        if let Some(state) = self.0.lock().await.remove(tag) {
+            state.lock().await.set_result(Ok(response));
         }
     }
 }

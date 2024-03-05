@@ -3,6 +3,7 @@ use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
 use tokio::net::TcpStream;
 use tokio::spawn;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::{error};
 use crate::message_processing;
@@ -24,7 +25,7 @@ pub trait ResponseHandler: Send + Sync + 'static {
 
 
 /// Spawn listener for command responses. Responses are handled by `response_handler`
-pub fn listen_for_responses(mut stream: SplitStream<Stream>, response_handler: impl ResponseHandler) {
+pub fn listen_for_responses(mut stream: SplitStream<Stream>, response_handler: impl ResponseHandler) -> JoinHandle<()> {
     spawn(async move {
         let response_handler = response_handler;
         // Read messages until some is delivered
@@ -46,5 +47,5 @@ pub fn listen_for_responses(mut stream: SplitStream<Stream>, response_handler: i
             };
             response_handler.handle_response(response).await;
         }
-    });
+    })
 }
