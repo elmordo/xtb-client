@@ -18,6 +18,8 @@ use tracing::{error, warn};
 use url::Url;
 
 use crate::api::{ErrorResponse, Request, Response, XtbErrorCodeError};
+use crate::message_processing;
+use crate::message_processing::ProcessedMessage;
 
 /// Interface for XTB servers connectors.
 #[async_trait]
@@ -33,18 +35,8 @@ pub enum XtbConnectionError {
     CannotConnect(String),
     #[error("Cannot serialize command payload")]
     SerializationError(serde_json::Error),
-    #[error("Cannot deserialize response payload")]
-    DeserializationError(serde_json::Error),
     #[error("Cannot send request to the XTB server.")]
     CannotSendRequest(tokio_tungstenite::tungstenite::Error),
-    #[error("Error when reading response from the XTB server.")]
-    ReceiveError(tokio_tungstenite::tungstenite::Error),
-    #[error("Expected to receive text data but something wrong was received.")]
-    ReceivedInvalidData(tokio_tungstenite::tungstenite::Error),
-    #[error("The operation failed and server return error response")]
-    OperationFailed(ErrorResponse),
-    #[error("A response format is malformed: {0}")]
-    MalformedResponse(String)
 }
 
 
@@ -94,20 +86,26 @@ impl BasicXtbConnection {
         let lookup = self.promise_state_by_tag.clone();
         spawn(async move {
             // Read messages until some is delivered
-            while let Some(message) = stream.next().await {
+            while let Some(message_result) = stream.next().await {
+                let message = match (message_result) {
+                    Ok(msg) => msg,
+                    Err(err) => {
+                        error!("Error when receiving message: {:?}", err);
+                        continue;
+                    }
+                };
                 // process message
-                let response = match process_message(message) {
-                    Ok(response) => Ok(response),
-                    Err(XtbConnectionError::OperationFailed(err_response)) => Err(err_response),
+                let response = match message_processing::process_message(message) {
+                    Ok(response) => response,
                     Err(err) => {
                         error!("Cannot process response: {:?}", err);
                         continue
                     },
                 };
                 // extract a tag from response
-                let maybe_tag = match response.as_ref() {
-                    Ok(resp) => resp.custom_tag.as_ref(),
-                    Err(resp) => resp.custom_tag.as_ref(),
+                let maybe_tag = match &response {
+                    ProcessedMessage::Response(resp) => resp.custom_tag.as_ref(),
+                    ProcessedMessage::ErrorResponse(resp) => resp.custom_tag.as_ref(),
                 };
 
                 // if there is no tag, continue (the message cannot be routed to consumer)
@@ -121,46 +119,12 @@ impl BasicXtbConnection {
 
                 // try to deliver message to its consumer
                 if let Some(state) = lookup.lock().await.remove(tag) {
-                    state.lock().await.set_response(response.map_err(|err| XtbConnectionError::OperationFailed(err)));
+                    state.lock().await.set_result(Ok(response));
                 }
             }
         });
     }
 }
-
-
-/// Get received message from tungstenite and tries to construct a response
-fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Error>) -> Result<Response, XtbConnectionError> {
-    let message = match message {
-        Ok(msg) => msg,
-        Err(err) => {
-            error!("Error when receiving message: {:?}", err);
-            return Err(XtbConnectionError::ReceiveError(err));
-        }
-    };
-
-    // deconstruct and deserialize data received from a server
-    let text_content = message.to_text().map_err(|err| XtbConnectionError::ReceivedInvalidData(err))?;
-    let value = from_str(text_content).map_err(|err| XtbConnectionError::DeserializationError(err))?;
-    process_message_value(value)
-}
-
-
-/// Get `Value` read from response payload and tries to construct Response or ErrorResponse
-fn process_message_value(value: Value) -> Result<Response, XtbConnectionError> {
-    // read s `status` first to determine response type
-    let status = value
-        .as_object().ok_or_else(|| XtbConnectionError::MalformedResponse("Value is not object".to_string()))?
-        .get("status").ok_or_else(|| XtbConnectionError::MalformedResponse("The response 'status' field is missing".to_owned()))?
-        .as_bool().ok_or_else(|| XtbConnectionError::MalformedResponse("The response 'status' field is not boolean".to_owned()))?;
-
-    if status {
-        Ok(from_value(value).map_err(|err| XtbConnectionError::DeserializationError(err))?)
-    } else {
-        Err(from_value(value).map_err(|err| XtbConnectionError::DeserializationError(err))?).map_err(|err| XtbConnectionError::OperationFailed(err))
-    }
-}
-
 
 
 #[async_trait]
@@ -187,7 +151,7 @@ pub struct ResponsePromiseState {
     ///
     /// * `None` - the response is not ready yet.
     /// * `Some(response)` - the response is ready to be delivered.
-    response: Option<Result<Response, XtbConnectionError>>,
+    result: Option<Result<ProcessedMessage, XtbConnectionError>>,
     /// If the `ResponsePromise` was palled, the `Waker` is stored here.
     /// When response is set and the waker is set, the waker is called.
     waker: Option<Waker>,
@@ -197,12 +161,12 @@ pub struct ResponsePromiseState {
 impl ResponsePromiseState {
     /// Create new instance waiting for a response
     pub fn new() -> Self {
-        Self { response: None, waker: None }
+        Self { result: None, waker: None }
     }
 
     /// Set response. If a waker is set in the state, it is notified.
-    pub fn set_response(&mut self, response: Result<Response, XtbConnectionError>) {
-        self.response = Some(response);
+    pub fn set_result(&mut self, result: Result<ProcessedMessage, XtbConnectionError>) {
+        self.result = Some(result);
         if let Some(waker) = self.waker.take() {
             waker.wake();
         }
@@ -235,13 +199,13 @@ impl ResponsePromise {
 
 
 impl Future for ResponsePromise {
-    type Output = Result<Response, XtbConnectionError>;
+    type Output = Result<ProcessedMessage, XtbConnectionError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Try to get the lock
         if let Poll::Ready(mut guard) = pin!(self.state.lock()).poll(cx) {
             // If response is set, return it as `Poll::Ready`
-            if let Some(response) = guard.response.take() {
+            if let Some(response) = guard.result.take() {
                 return Poll::Ready(response);
             }
             // If response is not ready yet, register the waker.
@@ -273,74 +237,6 @@ impl TagMaker {
 
 #[cfg(test)]
 mod tests {
-    mod process_message_and_process_message_value {
-        use rstest::rstest;
-        use serde_json::{from_str, Value};
-        use tokio_tungstenite::tungstenite::Message;
-
-        use crate::api::XtbErrorCode;
-        use crate::connection::process_message;
-        use crate::XtbConnectionError;
-
-        #[rstest]
-        #[case(r#"{"returnData": {"field": 12}, "status": true, "customTag": "myTag"}"#, "myTag", true)]
-        #[case(r#"{"status": true, "customTag": "myTag"}"#, "myTag", false)]
-        fn process_valid_response(#[case] payload: &str, #[case] expected_tag: &str, #[case] has_data: bool) {
-            let msg = Message::text(payload);
-            let response = process_message(Ok(msg)).unwrap();
-            let tag = response.custom_tag.clone().unwrap();
-            let expected_data = from_str::<Value>(payload).unwrap().as_object().unwrap().get("returnData").map(|v| v.to_owned());
-
-            if has_data {
-                assert!(response.return_data.is_some());
-            } else {
-                assert!(response.return_data.is_none());
-            }
-
-            assert!(response.status);
-            assert_eq!(&tag, expected_tag);
-            assert_eq!(response.return_data, expected_data);
-        }
-
-        #[rstest]
-        #[case(r#"{"status": false, "errorCode": "BE001", "errorDescr": "BE001", "customTag": "myTag"}"#, "myTag", XtbErrorCode::BE001)]
-        fn process_valid_error_response(#[case] payload: &str, #[case] expected_tag: &str, #[case] expected_error: XtbErrorCode) {
-            let msg = Message::text(payload);
-            let err = process_message(Ok(msg)).unwrap_err();
-
-            let error_response = match err {
-                XtbConnectionError::OperationFailed(e) => e,
-                _ => panic!("Invalid error")
-            };
-
-            let tag = error_response.custom_tag.unwrap();
-            assert_eq!(&tag, expected_tag);
-            assert_eq!(error_response.error_code, expected_error);
-            assert!(error_response.error_descr.unwrap().len() > 0);
-        }
-
-        #[test]
-        fn process_invalid_message_not_json() {
-            let msg = Message::text(r#"{foo bar}"#);
-            let err = process_message(Ok(msg)).unwrap_err();
-            match err {
-                XtbConnectionError::DeserializationError(_) => (),
-                _ => panic!("Expected XtbConnectionError::DeserializationError")
-            };
-        }
-
-        #[rstest]
-        #[case(r#"{"errorCode": "BE001", "errorDescr": "BE001", "customTag": "myTag"}"#)]
-        fn process_invalid_message_malformed_response(#[case] payload: &str) {
-            let msg = Message::text(payload);
-            let err = process_message(Ok(msg)).unwrap_err();
-            match err {
-                XtbConnectionError::MalformedResponse(_) => (),
-                _ => panic!("Expected XtbConnectionError::MalformedResponse, but {:?}", err)
-            };
-        }
-    }
-
     mod response_promise {
         use std::sync::Arc;
         use std::time::Duration;
@@ -353,6 +249,7 @@ mod tests {
 
         use crate::api::Response;
         use crate::connection::ResponsePromiseState;
+        use crate::message_processing::ProcessedMessage;
         use crate::ResponsePromise;
 
         #[rstest]
@@ -375,7 +272,7 @@ mod tests {
             let mut lock = target.lock().await;
             let mut response = Response::default();
             response.return_data = Some(to_value(42).unwrap());
-            lock.set_response(Ok(response));
+            lock.set_result(Ok(ProcessedMessage::Response(response)));
         }
     }
 
