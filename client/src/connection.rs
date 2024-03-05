@@ -77,6 +77,8 @@ impl BasicXtbConnection {
         Ok(instance)
     }
 
+    /// Build a request from command and payload.
+    /// Return request and its tag.
     fn build_request(&mut self, command: &str, payload: Option<Value>) -> (Request, String) {
         let tag = self.tag_maker.next();
 
@@ -87,10 +89,13 @@ impl BasicXtbConnection {
         (r, tag)
     }
 
+    /// Spawn a tokio task listening for server data
     async fn run_listener(&self, mut stream: SplitStream<Stream>) {
         let lookup = self.promise_state_by_tag.clone();
         spawn(async move {
+            // Read messages until some is delivered
             while let Some(message) = stream.next().await {
+                // process message
                 let response = match process_message(message) {
                     Ok(response) => Ok(response),
                     Err(XtbConnectionError::OperationFailed(err_response)) => Err(err_response),
@@ -99,11 +104,13 @@ impl BasicXtbConnection {
                         continue
                     },
                 };
+                // extract a tag from response
                 let maybe_tag = match response.as_ref() {
                     Ok(resp) => resp.custom_tag.as_ref(),
                     Err(resp) => resp.custom_tag.as_ref(),
                 };
 
+                // if there is no tag, continue (the message cannot be routed to consumer)
                 let tag = match maybe_tag {
                     Some(t) => t,
                     _ => {
@@ -112,6 +119,7 @@ impl BasicXtbConnection {
                     }
                 };
 
+                // try to deliver message to its consumer
                 if let Some(state) = lookup.lock().await.remove(tag) {
                     state.lock().await.set_response(response.map_err(|err| XtbConnectionError::OperationFailed(err)));
                 }
@@ -121,6 +129,7 @@ impl BasicXtbConnection {
 }
 
 
+/// Get received message from tungstenite and tries to construct a response
 fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Error>) -> Result<Response, XtbConnectionError> {
     let message = match message {
         Ok(msg) => msg,
@@ -130,13 +139,16 @@ fn process_message(message: Result<Message, tokio_tungstenite::tungstenite::Erro
         }
     };
 
+    // deconstruct and deserialize data received from a server
     let text_content = message.to_text().map_err(|err| XtbConnectionError::ReceivedInvalidData(err))?;
     let value = from_str(text_content).map_err(|err| XtbConnectionError::DeserializationError(err))?;
     process_message_value(value)
 }
 
 
+/// Get `Value` read from response payload and tries to construct Response or ErrorResponse
 fn process_message_value(value: Value) -> Result<Response, XtbConnectionError> {
+    // read s `status` first to determine response type
     let status = value
         .as_object().ok_or_else(|| XtbConnectionError::MalformedResponse("Value is not object".to_string()))?
         .get("status").ok_or_else(|| XtbConnectionError::MalformedResponse("The response 'status' field is missing".to_owned()))?
