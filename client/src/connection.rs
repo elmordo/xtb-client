@@ -7,7 +7,7 @@ use std::task::{Context, Poll, Waker};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use futures_util::stream::{SplitSink, SplitStream};
-use serde_json::{from_str, from_value, Map, Value};
+use serde_json::{Value};
 use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::spawn;
@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 use url::Url;
 
-use crate::api::{ErrorResponse, Request, Response, XtbErrorCodeError};
+use crate::api::{Request};
 use crate::message_processing;
 use crate::message_processing::ProcessedMessage;
 
@@ -87,7 +87,7 @@ impl BasicXtbConnection {
         spawn(async move {
             // Read messages until some is delivered
             while let Some(message_result) = stream.next().await {
-                let message = match (message_result) {
+                let message = match message_result {
                     Ok(msg) => msg,
                     Err(err) => {
                         error!("Error when receiving message: {:?}", err);
@@ -131,12 +131,12 @@ impl BasicXtbConnection {
 impl XtbConnection for BasicXtbConnection {
     async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError> {
         let (request, tag) = self.build_request(command, payload);
-        let request_json = serde_json::to_string(&request).map_err(|err| XtbConnectionError::SerializationError(err))?;
+        let request_json = serde_json::to_string(&request).map_err(XtbConnectionError::SerializationError)?;
         let message = Message::Text(request_json);
 
         let (promise, state) = ResponsePromise::new();
         self.promise_state_by_tag.lock().await.insert(tag, state);
-        self.sink.send(message).await.map_err(|err| XtbConnectionError::CannotSendRequest(err))?;
+        self.sink.send(message).await.map_err(XtbConnectionError::CannotSendRequest)?;
 
         Ok(promise)
     }
@@ -145,7 +145,7 @@ impl XtbConnection for BasicXtbConnection {
 
 /// Internal state shared between the ResponsePromise and BasicXtbConnection instance.
 /// This state is used to deliver response to the consumer.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct ResponsePromiseState {
     /// The response.
     ///
@@ -159,11 +159,6 @@ pub struct ResponsePromiseState {
 
 
 impl ResponsePromiseState {
-    /// Create new instance waiting for a response
-    pub fn new() -> Self {
-        Self { result: None, waker: None }
-    }
-
     /// Set response. If a waker is set in the state, it is notified.
     pub fn set_result(&mut self, result: Result<ProcessedMessage, XtbConnectionError>) {
         self.result = Some(result);
@@ -191,7 +186,7 @@ impl ResponsePromise {
     /// 1. instance of `Self`
     /// 2. thread safe `ResponsePromiseState` for response delivery.
     pub fn new() -> (Self, Arc<Mutex<ResponsePromiseState>>) {
-        let state = ResponsePromiseState::new();
+        let state = ResponsePromiseState::default();
         let wrapped_state = Arc::new(Mutex::new(state));
         (Self { state: wrapped_state.clone() }, wrapped_state)
     }
@@ -230,7 +225,7 @@ struct TagMaker(u64);
 impl TagMaker {
     fn next(&mut self) -> String {
         self.0 += 1;
-        format!("message_{}", self.0.to_string())
+        format!("message_{}", self.0)
     }
 }
 

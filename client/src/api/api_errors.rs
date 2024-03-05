@@ -165,7 +165,7 @@ impl FromStr for XtbErrorCode {
             "EX011" => Ok(XtbErrorCode::EX011),
             v @ ("BE020" | "BE021" | "BE022" | "BE023" | "BE024" | "BE025" | "BE026" | "BE027" | "BE028" | "BE029" | "BE030" | "BE031" | "BE032" | "BE033" | "BE034" | "BE035" | "BE036" | "BE037" | "BE099") => parse_other_error(v),
             v if v.starts_with("SE") => parse_se_error(v),
-            v @ _ => Err(XtbErrorCodeError::UnsupportedErrorCode(v.to_owned())),
+            v => Err(XtbErrorCodeError::UnsupportedErrorCode(v.to_owned())),
         }
     }
 }

@@ -4,7 +4,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 
 use crate::api::{ErrorResponse, Response};
-use crate::XtbConnectionError;
+
 
 
 #[derive(Debug, Error)]
@@ -43,8 +43,8 @@ impl ProcessedMessage {
 /// Get received message from tungstenite and tries to construct a response
 pub fn process_message(message: Message) -> Result<ProcessedMessage, MessageProcessingError> {
     // deconstruct and deserialize data received from a server
-    let text_content = message.to_text().map_err(|err| MessageProcessingError::ReceivedInvalidData(err))?;
-    let value = from_str(text_content).map_err(|err| MessageProcessingError::DeserializationError(err))?;
+    let text_content = message.to_text().map_err(MessageProcessingError::ReceivedInvalidData)?;
+    let value = from_str(text_content).map_err(MessageProcessingError::DeserializationError)?;
     process_message_value(value)
 }
 
@@ -58,10 +58,10 @@ fn process_message_value(value: Value) -> Result<ProcessedMessage, MessageProces
         .as_bool().ok_or_else(|| MessageProcessingError::MalformedResponse("The response 'status' field is not boolean".to_owned()))?;
 
     if status {
-        let response = from_value(value).map_err(|err| MessageProcessingError::DeserializationError(err))?;
+        let response = from_value(value).map_err(MessageProcessingError::DeserializationError)?;
         Ok(ProcessedMessage::Response(response))
     } else {
-        let response = from_value(value).map_err(|err| MessageProcessingError::DeserializationError(err))?;
+        let response = from_value(value).map_err(MessageProcessingError::DeserializationError)?;
         Ok(ProcessedMessage::ErrorResponse(response))
     }
 }
