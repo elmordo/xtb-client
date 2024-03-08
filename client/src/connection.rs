@@ -51,9 +51,9 @@ pub struct BasicXtbConnection {
 
 impl BasicXtbConnection {
     /// Create new instance from server url
-    pub async fn new(host: Url) -> Result<Self, XtbConnectionError> {
-        let host_clone = host.as_str().to_owned();
-        let (conn, _) = connect_async(host).await.map_err(|_| XtbConnectionError::CannotConnect(host_clone))?;
+    pub async fn new(url: Url) -> Result<Self, XtbConnectionError> {
+        let host_clone = url.as_str().to_owned();
+        let (conn, _) = connect_async(url).await.map_err(|_| XtbConnectionError::CannotConnect(host_clone))?;
 
         let (sink, stream) = conn.split();
         let lookup = Arc::new(Mutex::new(HashMap::new()));

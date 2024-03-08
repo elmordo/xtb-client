@@ -18,7 +18,7 @@ pub enum MessageProcessingError {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ProcessedMessage {
     Response(Response),
     ErrorResponse(ErrorResponse),
