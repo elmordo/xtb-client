@@ -31,7 +31,7 @@ pub trait XtbStreamConnection {
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
 
     /// Create message stream builder
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> Self::MessageStream;
+    async fn make_message_stream(&mut self, filter: DataMessageFilter) -> Self::MessageStream;
 }
 
 
@@ -116,7 +116,7 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
         self.assemble_and_send(request, arguments).await
     }
 
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> Self::MessageStream {
+    async fn make_message_stream(&mut self, filter: DataMessageFilter) -> Self::MessageStream {
         BasicMessageStream::new(filter, self.sender.subscribe())
     }
 }
@@ -149,7 +149,7 @@ impl StreamDataMessageHandler for MessageHandler {
 
 
 #[derive(Default)]
-pub enum StreamFilter {
+pub enum DataMessageFilter {
     /// Always true
     #[default]
     Always,
@@ -158,9 +158,9 @@ pub enum StreamFilter {
     /// Command name must match
     Command(String),
     /// All inner filters must match
-    All(Vec<StreamFilter>),
+    All(Vec<DataMessageFilter>),
     /// Any inner filter must match
-    Any(Vec<StreamFilter>),
+    Any(Vec<DataMessageFilter>),
     /// Value of field in `data` must match
     /// Return true if and only if the `data` field is type of `Object::Value`, contains key
     /// defined by `name` and the field is equal to `value`.
@@ -170,7 +170,7 @@ pub enum StreamFilter {
 }
 
 
-impl StreamFilter {
+impl DataMessageFilter {
     /// Return true if the filter match, return false otherwise.
     pub fn test_message(&self, msg: &StreamDataMessage) -> bool {
         match self {
@@ -200,12 +200,12 @@ impl StreamFilter {
     }
 
     /// resolve StreamFilter::All
-    fn resolve_all(msg: &StreamDataMessage, ops: &Vec<StreamFilter>) -> bool {
+    fn resolve_all(msg: &StreamDataMessage, ops: &Vec<DataMessageFilter>) -> bool {
         ops.iter().all(|f| f.test_message(msg))
     }
 
     /// resolve StreamFilter::Any
-    fn resolve_any(msg: &StreamDataMessage, ops: &Vec<StreamFilter>) -> bool {
+    fn resolve_any(msg: &StreamDataMessage, ops: &Vec<DataMessageFilter>) -> bool {
         ops.iter().any(|f| f.test_message(msg))
     }
 
@@ -257,7 +257,7 @@ pub trait MessageStream {
 
 pub struct BasicMessageStream {
     /// The filter for messages
-    filter: StreamFilter,
+    filter: DataMessageFilter,
     /// Stream with incoming messages
     stream: Receiver<StreamDataMessage>,
 }
@@ -265,7 +265,7 @@ pub struct BasicMessageStream {
 
 impl BasicMessageStream {
     /// Create new instance
-    pub fn new(filter: StreamFilter, stream: Receiver<StreamDataMessage>) -> Self {
+    pub fn new(filter: DataMessageFilter, stream: Receiver<StreamDataMessage>) -> Self {
         BasicMessageStream {
             filter,
             stream,
