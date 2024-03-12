@@ -59,7 +59,7 @@ impl BasicXtbStreamConnection {
             stream_session_id,
             sender,
             sink,
-            listener_join
+            listener_join,
         })
     }
 
@@ -157,9 +157,9 @@ pub enum DataMessageFilter {
     Never,
     /// Command name must match
     Command(String),
-    /// All inner filters must match
+    /// All inner filters must match. If list of predicates is empty, return true.
     All(Vec<DataMessageFilter>),
-    /// Any inner filter must match
+    /// Any inner filter must match. If list of predicates is empty, return false
     Any(Vec<DataMessageFilter>),
     /// Value of field in `data` must match
     /// Return true if and only if the `data` field is type of `Object::Value`, contains key
@@ -283,5 +283,90 @@ impl MessageStream for BasicMessageStream {
             }
         }
         None
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    mod data_message_filter {
+        use rstest::rstest;
+        use serde_json::{from_str, Value};
+        use crate::api::StreamDataMessage;
+        use crate::DataMessageFilter;
+
+        #[test]
+        fn always() {
+            let msg = StreamDataMessage::default();
+            assert!(DataMessageFilter::Always.test_message(&msg));
+        }
+
+        #[test]
+        fn never() {
+            let msg = StreamDataMessage::default();
+            assert!(!DataMessageFilter::Never.test_message(&msg));
+        }
+
+        #[rstest]
+        #[case("command", true)]
+        #[case("other_command", false)]
+        fn command(#[case] cmd: &str, #[case] expected_result: bool) {
+            let msg = StreamDataMessage { command: "command".to_string(), data: Value::Null };
+            assert_eq!(DataMessageFilter::Command(cmd.to_string()).test_message(&msg), expected_result);
+        }
+
+        #[rstest]
+        #[case(vec ! [], true)]
+        #[case(vec ! [DataMessageFilter::Always], true)]
+        #[case(vec ! [DataMessageFilter::Never], false)]
+        #[case(vec ! [DataMessageFilter::Command("command".to_string()), DataMessageFilter::Always], true)]
+        #[case(vec ! [DataMessageFilter::Command("command".to_string()), DataMessageFilter::Never], false)]
+        #[case(vec ! [DataMessageFilter::Command("other_command".to_string()), DataMessageFilter::Never], false)]
+        #[case(vec ! [DataMessageFilter::Command("other_command".to_string()), DataMessageFilter::Always], false)]
+        fn all(#[case] filters: Vec<DataMessageFilter>, #[case] expected_result: bool) {
+            let msg = StreamDataMessage { command: "command".to_owned(), data: Value::Null };
+            let f = DataMessageFilter::All(filters);
+            assert_eq!(f.test_message(&msg), expected_result);
+        }
+
+        #[rstest]
+        #[case(vec ! [], false)]
+        #[case(vec ! [DataMessageFilter::Always], true)]
+        #[case(vec ! [DataMessageFilter::Never], false)]
+        #[case(vec ! [DataMessageFilter::Command("command".to_string()), DataMessageFilter::Always], true)]
+        #[case(vec ! [DataMessageFilter::Command("command".to_string()), DataMessageFilter::Never], true)]
+        #[case(vec ! [DataMessageFilter::Command("other_command".to_string()), DataMessageFilter::Never], false)]
+        #[case(vec ! [DataMessageFilter::Command("other_command".to_string()), DataMessageFilter::Always], true)]
+        fn any(#[case] filters: Vec<DataMessageFilter>, #[case] expected_result: bool) {
+            let msg = StreamDataMessage { command: "command".to_owned(), data: Value::Null };
+            let f = DataMessageFilter::Any(filters);
+            assert_eq!(f.test_message(&msg), expected_result);
+        }
+
+        #[rstest]
+        #[case(r#"{"field": "value"}"#, true)]
+        #[case(r#"{"field": 10}"#, false)]
+        #[case(r#"{"other_field": 10}"#, false)]
+        #[case(r#"null"#, false)]
+        fn filed_value(#[case] source_data: &str, #[case] expected_value: bool) {
+            let data: Value = from_str(source_data).unwrap();
+            let msg = StreamDataMessage { data, command: "".to_owned() };
+            let f = DataMessageFilter::FieldValue { name: "field".to_owned(), value: Value::String("value".to_owned()) };
+            assert_eq!(f.test_message(&msg), expected_value)
+        }
+
+        #[test]
+        fn custom_true() {
+            let msg = StreamDataMessage::default();
+            let f = DataMessageFilter::Custom(Box::new(|msg| true));
+            assert_eq!(f.test_message(&msg), true)
+        }
+
+        #[test]
+        fn custom_false() {
+            let msg = StreamDataMessage::default();
+            let f = DataMessageFilter::Custom(Box::new(|msg| false));
+            assert_eq!(f.test_message(&msg), false)
+        }
     }
 }
