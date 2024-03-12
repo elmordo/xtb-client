@@ -35,6 +35,49 @@ pub struct Response {
 }
 
 
+/// Subscribe for stream of data
+///
+/// # Note
+///
+/// This struct does not carry any arguments itself. The arguments are merged into serialized object
+/// before the send operation is done.
+#[derive(Clone, Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[setters(into, prefix = "with_", strip_option)]
+pub struct SubscribeRequest {
+    /// The command name
+    pub command: String,
+    /// The stream session id (identify the connection)
+    pub stream_session_id: String
+}
+
+
+/// Unsubscribe from stream of data
+///
+/// # Note
+///
+/// This struct does not carry any arguments itself. The arguments are merged into serialized object
+/// before the send operation is done.
+#[derive(Clone, Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[setters(into, prefix = "with_", strip_option)]
+pub struct UnsubscribeRequest {
+    /// Command to be unsubscribed from
+    command: String,
+}
+
+
+/// Data stream item representation
+#[derive(Clone, Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamDataMessage {
+    /// Source command
+    command: String,
+    /// Payload
+    data: Value
+}
+
+
 /// Response message returned from server when operation fails.
 #[derive(Clone, Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
