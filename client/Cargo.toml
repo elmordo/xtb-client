@@ -19,6 +19,7 @@ tracing = "0.1.40"
 tokio-tungstenite = { version = "^0.21.0", features = ["rustls"] }
 url = "^2.5.0"
 futures-util = "^0.3.30"
+log = "0.4.21"
 
 [dev-dependencies]
 rstest = "^0.18.2"

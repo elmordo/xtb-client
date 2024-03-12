@@ -1,3 +1,7 @@
+#[cfg(test)]
+use rstest_reuse;
+
+pub use client::*;
 pub use connection::*;
 pub use stream_connection::*;
 
@@ -6,6 +10,4 @@ mod connection;
 mod message_processing;
 mod listener;
 mod stream_connection;
-
-#[cfg(test)]
-use rstest_reuse;
+mod client;
