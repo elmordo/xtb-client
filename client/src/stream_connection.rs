@@ -93,28 +93,9 @@ impl BasicXtbStreamConnection {
 }
 
 
-/// Handle incoming data messages from stream
-struct MessageHandler {
-    /// Broadcast sender for messages
-    sender: Sender<StreamDataMessage>,
-}
-
-
-impl MessageHandler {
-    /// Create new instance of the MessageHandler
-    pub fn new(sender: Sender<StreamDataMessage>) -> Self {
-        Self { sender }
-    }
-}
-
-
-#[async_trait]
-impl StreamDataMessageHandler for MessageHandler {
-    async fn handle_message(&self, message: StreamDataMessage) {
-        match self.sender.send(message) {
-            Err(err) => error!("Cannot broadcast message: {}", err),
-            _ => ()
-        }
+impl Drop for BasicXtbStreamConnection {
+    fn drop(&mut self) {
+        self.listener_join.abort();
     }
 }
 
@@ -137,6 +118,32 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
 
     async fn make_message_stream(&mut self, filter: StreamFilter) -> Self::MessageStream {
         BasicMessageStream::new(filter, self.sender.subscribe())
+    }
+}
+
+
+/// Handle incoming data messages from stream
+struct MessageHandler {
+    /// Broadcast sender for messages
+    sender: Sender<StreamDataMessage>,
+}
+
+
+impl MessageHandler {
+    /// Create new instance of the MessageHandler
+    pub fn new(sender: Sender<StreamDataMessage>) -> Self {
+        Self { sender }
+    }
+}
+
+
+#[async_trait]
+impl StreamDataMessageHandler for MessageHandler {
+    async fn handle_message(&self, message: StreamDataMessage) {
+        match self.sender.send(message) {
+            Err(err) => error!("Cannot broadcast message: {}", err),
+            _ => ()
+        }
     }
 }
 
