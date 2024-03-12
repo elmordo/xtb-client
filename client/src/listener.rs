@@ -6,7 +6,7 @@ use tokio::spawn;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::{error};
-use crate::api::StreamDataMessage;
+use crate::schema::StreamDataMessage;
 use crate::message_processing;
 use crate::message_processing::ProcessedMessage;
 

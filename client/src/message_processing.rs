@@ -3,7 +3,7 @@ use thiserror::Error;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 
-use crate::api::{ErrorResponse, Response};
+use crate::schema::{ErrorResponse, Response};
 
 
 
@@ -75,7 +75,7 @@ mod tests {
         use serde_json::{from_str, Value};
         use tokio_tungstenite::tungstenite::Message;
 
-        use crate::api::XtbErrorCode;
+        use crate::schema::XtbErrorCode;
         use crate::message_processing::MessageProcessingError;
 
         #[rstest]

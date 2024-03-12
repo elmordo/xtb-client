@@ -16,7 +16,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::{error, warn};
 use url::Url;
 
-use crate::api::Request;
+use crate::schema::Request;
 use crate::listener::{listen_for_responses, ResponseHandler, Stream};
 use crate::message_processing::ProcessedMessage;
 
@@ -232,7 +232,7 @@ mod tests {
         use tokio::sync::Mutex;
         use tokio::time::sleep;
 
-        use crate::api::Response;
+        use crate::schema::Response;
         use crate::connection::ResponsePromiseState;
         use crate::message_processing::ProcessedMessage;
         use crate::ResponsePromise;

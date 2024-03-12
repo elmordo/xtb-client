@@ -1,7 +1,7 @@
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::api::api_errors::XtbErrorCode;
+use crate::schema::api_errors::XtbErrorCode;
 
 
 /// Message sent to XTB servers
@@ -95,7 +95,7 @@ pub struct ErrorResponse {
 mod tests {
     use rstest::rstest;
     use serde_json::{from_str, to_value, Value};
-    use crate::api::Request;
+    use crate::schema::Request;
 
     #[rstest]
     #[case(Request::default().with_command("command").with_arguments("argument").with_custom_tag("tag"), "{\"command\": \"command\", \"arguments\": \"argument\", \"customTag\": \"tag\"}")]

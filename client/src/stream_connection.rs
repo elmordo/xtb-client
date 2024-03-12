@@ -10,7 +10,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::error;
 use url::Url;
-use crate::api::{StreamDataMessage, SubscribeRequest, UnsubscribeRequest};
+use crate::schema::{StreamDataMessage, SubscribeRequest, UnsubscribeRequest};
 
 use crate::listener::{listen_for_stream_data, Stream, StreamDataMessageHandler};
 
@@ -292,7 +292,7 @@ mod tests {
     mod data_message_filter {
         use rstest::rstest;
         use serde_json::{from_str, Value};
-        use crate::api::StreamDataMessage;
+        use crate::schema::StreamDataMessage;
         use crate::DataMessageFilter;
 
         #[test]

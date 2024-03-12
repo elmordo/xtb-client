@@ -223,7 +223,7 @@ mod tests {
         use std::fmt::Debug;
         use rstest::rstest;
         use serde::{Deserialize, Serialize};
-        use crate::api::enums::{TradeStatus, TransactionStatus, TransactionType, DayOfWeek, TradingCommand, QuoteId, MarginMode, ProfitMode, ImpactLevel, TimePeriod, TradingAction};
+        use crate::schema::enums::{TradeStatus, TransactionStatus, TransactionType, DayOfWeek, TradingCommand, QuoteId, MarginMode, ProfitMode, ImpactLevel, TimePeriod, TradingAction};
         use serde_json::{from_value, to_value, Value};
 
         #[rstest]

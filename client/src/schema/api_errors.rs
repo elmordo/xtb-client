@@ -264,7 +264,7 @@ mod tests {
     mod other_error_parser {
         use rstest::rstest;
 
-        use crate::api::api_errors::{parse_other_error, XtbErrorCode, XtbErrorCodeError};
+        use crate::schema::api_errors::{parse_other_error, XtbErrorCode, XtbErrorCodeError};
 
         #[rstest]
         #[case("BE020", 20)]
@@ -304,7 +304,7 @@ mod tests {
     mod se_error_parser {
         use rstest::rstest;
 
-        use crate::api::api_errors::{parse_se_error, XtbErrorCode, XtbErrorCodeError};
+        use crate::schema::api_errors::{parse_se_error, XtbErrorCode, XtbErrorCodeError};
 
         #[rstest]
         #[case("SE000", 0)]
@@ -332,7 +332,7 @@ mod tests {
         use rstest_reuse::{self, *};
         use serde_json::from_str;
 
-        use crate::api::api_errors::XtbErrorCode;
+        use crate::schema::api_errors::XtbErrorCode;
 
         #[template]
         #[rstest]
