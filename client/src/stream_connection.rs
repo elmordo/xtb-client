@@ -8,10 +8,9 @@ use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
-use crate::api::{SubscribeRequest, UnsubscribeRequest};
+use crate::api::{StreamDataMessage, SubscribeRequest, UnsubscribeRequest};
 
 use crate::listener::Stream;
-use crate::message_processing::{ProcessedMessage};
 
 /// Common interface for stream command api of the XTB.
 #[async_trait]
@@ -34,7 +33,7 @@ pub trait XtbStreamConnection {
 pub struct BasicXtbStreamConnection {
     /// Stream session id used to identify for the stream server
     stream_session_id: String,
-    sender: Sender<ProcessedMessage>,
+    sender: Sender<StreamDataMessage>,
     /// Sink used for sending messages to the XTB server
     sink: SplitSink<Stream, Message>,
 }
@@ -104,20 +103,20 @@ pub enum StreamFilter {
     And(Vec<StreamFilter>),
     Or(Vec<StreamFilter>),
     FieldValue { name: String, value: Value },
-    Custom(Box<dyn Fn(&ProcessedMessage) -> bool + Send + Sync>)
+    Custom(Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>)
 }
 
 
 impl StreamFilter {
-    pub fn test_message(&self, msg: &ProcessedMessage) -> bool {
+    pub fn test_message(&self, msg: &StreamDataMessage) -> bool {
         todo!()
     }
 
-    fn resolve_noop(msg: &ProcessedMessage) -> bool {
+    fn resolve_noop(msg: &StreamDataMessage) -> bool {
         true
     }
 
-    fn resolve_command(msg: &ProcessedMessage, command: &str) -> bool {
+    fn resolve_command(msg: &StreamDataMessage, command: &str) -> bool {
         todo!()
     }
 }
@@ -144,19 +143,19 @@ pub trait MessageStream {
     ///
     /// `Some(x)` - next message in stream
     /// `None` - there is no more message
-    async fn next(&mut self) -> Option<ProcessedMessage>;
+    async fn next(&mut self) -> Option<StreamDataMessage>;
 }
 
 
 pub struct BasicMessageStream {
     filter: StreamFilter,
-    stream: Receiver<ProcessedMessage>
+    stream: Receiver<StreamDataMessage>
 }
 
 
 #[async_trait]
 impl MessageStream for BasicMessageStream {
-    async fn next(&mut self) -> Option<ProcessedMessage> {
+    async fn next(&mut self) -> Option<StreamDataMessage> {
         while let Some(msg) = self.stream.recv().await.ok() {
             if self.filter.test_message(&msg) {
                 return Some(msg)
