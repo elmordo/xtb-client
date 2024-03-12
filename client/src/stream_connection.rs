@@ -90,7 +90,7 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
     }
 
     async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream {
-        todo!()
+        BasicMessageStream::new(filter, self.sender.subscribe())
     }
 }
 
@@ -203,8 +203,21 @@ pub trait MessageStream {
 
 
 pub struct BasicMessageStream {
+    /// The filter for messages
     filter: StreamFilter,
+    /// Stream with incoming messages
     stream: Receiver<StreamDataMessage>
+}
+
+
+impl BasicMessageStream {
+    /// Create new instance
+    pub fn new(filter: StreamFilter, stream: Receiver<StreamDataMessage>) -> Self {
+        BasicMessageStream {
+            filter,
+            stream,
+        }
+    }
 }
 
 
