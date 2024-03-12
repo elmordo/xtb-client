@@ -1,4 +1,5 @@
 pub use connection::*;
+pub use stream_connection::*;
 
 pub mod api;
 mod connection;

@@ -185,12 +185,12 @@ impl StreamFilter {
     }
 
     /// resolve StreamFilter::Always
-    fn resolve_always(msg: &StreamDataMessage) -> bool {
+    fn resolve_always(_: &StreamDataMessage) -> bool {
         true
     }
 
     /// resolve StreamFilter::Never
-    fn resolve_never(msg: &StreamDataMessage) -> bool {
+    fn resolve_never(_: &StreamDataMessage) -> bool {
         false
     }
 
@@ -211,9 +211,9 @@ impl StreamFilter {
 
     /// resolve StreamFilter::FieldValue
     fn resolve_field_value(msg: &StreamDataMessage, field_name: &str, field_value: &Value) -> bool {
-        match field_value {
-            Value::Object(obj) => {
-                if let Some(field_content) = obj.get(field_name) {
+        match &msg.data {
+            Value::Object(data_obj) => {
+                if let Some(field_content) = data_obj.get(field_name) {
                     field_content == field_value
                 } else {
                     false

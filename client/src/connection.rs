@@ -6,7 +6,7 @@ use std::task::{Context, Poll, Waker};
 
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::stream::{SplitSink};
 use serde_json::Value;
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -18,7 +18,6 @@ use url::Url;
 
 use crate::api::Request;
 use crate::listener::{listen_for_responses, ResponseHandler, Stream};
-use crate::message_processing;
 use crate::message_processing::ProcessedMessage;
 
 /// Interface for XTB servers connectors.
@@ -100,7 +99,7 @@ impl XtbConnection for BasicXtbConnection {
 
 impl Drop for BasicXtbConnection {
     fn drop(&mut self) {
-        /// Stop the listening task
+        // Stop the listening task
         self.listener_join.abort();
     }
 }
