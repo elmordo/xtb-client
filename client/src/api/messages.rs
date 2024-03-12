@@ -11,8 +11,6 @@ use crate::api::api_errors::XtbErrorCode;
 pub struct Request {
     /// The command name
     pub command: String,
-    /// Used for stream api commands
-    pub stream_session_id: Option<String>,
     /// Data (payload) send with a command
     pub arguments: Option<Value>,
     /// Custom tag for message identification
@@ -100,7 +98,7 @@ mod tests {
     use crate::api::Request;
 
     #[rstest]
-    #[case(Request::default().with_command("command").with_arguments("argument").with_stream_session_id("sess_id").with_custom_tag("tag"), "{\"command\": \"command\", \"arguments\": \"argument\", \"streamSessionId\": \"sess_id\", \"customTag\": \"tag\"}")]
+    #[case(Request::default().with_command("command").with_arguments("argument").with_custom_tag("tag"), "{\"command\": \"command\", \"arguments\": \"argument\", \"customTag\": \"tag\"}")]
     fn serialize_request(#[case] request: Request, #[case] expected_json: &str) {
         let request_value = to_value(request).unwrap();
         let expected_value: Value = from_str(expected_json).unwrap();
