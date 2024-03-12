@@ -41,7 +41,7 @@ pub struct Response {
 ///
 /// This struct does not carry any arguments itself. The arguments are merged into serialized object
 /// before the send operation is done.
-#[derive(Clone, Default, Debug, Serialize)]
+#[derive(Clone, Default, Debug, Serialize, Setters)]
 #[serde(rename_all = "camelCase")]
 #[setters(into, prefix = "with_", strip_option)]
 pub struct SubscribeRequest {
@@ -58,7 +58,7 @@ pub struct SubscribeRequest {
 ///
 /// This struct does not carry any arguments itself. The arguments are merged into serialized object
 /// before the send operation is done.
-#[derive(Clone, Default, Debug, Serialize)]
+#[derive(Clone, Default, Debug, Serialize, Setters)]
 #[serde(rename_all = "camelCase")]
 #[setters(into, prefix = "with_", strip_option)]
 pub struct UnsubscribeRequest {

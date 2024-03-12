@@ -1,12 +1,14 @@
 use async_trait::async_trait;
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
-use serde_json::{Map, Value};
+use serde::Serialize;
+use serde_json::{Map, to_string, to_value, Value};
 use thiserror::Error;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
+use crate::api::{SubscribeRequest, UnsubscribeRequest};
 
 use crate::listener::Stream;
 use crate::message_processing::{ProcessedMessage};
@@ -51,23 +53,17 @@ impl BasicXtbStreamConnection {
         })
     }
 
-    async fn build_and_send(&mut self, command: &str, arguments: Option<Value>, include_stream_id: bool) -> Result<(), XtbStreamConnectionError> {
-        let arguments_obj = Self::prepare_arguments(arguments)?;
-        let message = self.build_stream_message(command.to_owned(), include_stream_id, arguments_obj)?;
-        self.sink.send(message).await.map_err(|err| XtbStreamConnectionError::CannotSend(err))
-    }
+    async fn assemble_and_send<T: Serialize>(&mut self, request: T, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
+        let mut obj = to_value(request).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?;
+        let prepared_arguments = Self::prepare_arguments(arguments)?;
 
-    /// Build message for subscription
-    fn build_stream_message(&self, command: String, include_stream_id: bool, payload: Option<Map<String, Value>>) -> Result<Message, XtbStreamConnectionError> {
-        let mut content = Map::new();
-        content.insert("command".to_string(), Value::String(command.to_string()));
-        if include_stream_id {
-            content.insert("streamSessionId".to_string(), Value::String(self.stream_session_id.clone()));
+        if let Some(mut prepared_obj) = prepared_arguments {
+            // unwrap is safe here.
+            obj.as_object_mut().unwrap().append(&mut prepared_obj);
         }
-        if let Some(mut payload_data) = payload {
-            content.append(&mut payload_data);
-        }
-        Ok(Message::Text(serde_json::to_string(&Value::Object(content)).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?))
+        let serialized = to_string(&obj).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?;
+        let message = Message::text(serialized);
+        self.sink.send(message).await.map_err(|err| XtbStreamConnectionError::CannotSend(err))
     }
 
     fn prepare_arguments(arguments: Option<Value>) -> Result<Option<Map<String, Value>>, XtbStreamConnectionError> {
@@ -83,11 +79,15 @@ impl BasicXtbStreamConnection {
 #[async_trait]
 impl XtbStreamConnection for BasicXtbStreamConnection {
     async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
-        self.build_and_send(command, arguments, true).await
+        let request = SubscribeRequest::default()
+            .with_command(command)
+            .with_stream_session_id(&self.stream_session_id);
+        self.assemble_and_send(request, arguments).await
     }
 
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
-        self.build_and_send(command, arguments, false).await
+        let request = UnsubscribeRequest::default().with_command(command);
+        self.assemble_and_send(request, arguments).await
     }
 
     async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream {
