@@ -15,6 +15,10 @@ use crate::listener::Stream;
 /// Common interface for stream command api of the XTB.
 #[async_trait]
 pub trait XtbStreamConnection {
+
+    /// Type of message stream returned by the `make_message_stream` method.
+    type MessageStream: MessageStream;
+
     /// Subscribe for data stream from the XTB server
     ///
     /// The `arguments` must be `Value::Object`. Any other variants causes an error
@@ -26,7 +30,7 @@ pub trait XtbStreamConnection {
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
 
     /// Create message stream builder
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream;
+    async fn make_message_stream(&mut self, filter: StreamFilter) -> Self::MessageStream;
 }
 
 
@@ -40,6 +44,7 @@ pub struct BasicXtbStreamConnection {
 
 
 impl BasicXtbStreamConnection {
+
     pub async fn new(url: Url, stream_session_id: String) -> Result<Self, XtbStreamConnectionError> {
         let (sender, _) = channel(64usize);
         let host_clone = url.as_str().to_owned();
@@ -77,6 +82,9 @@ impl BasicXtbStreamConnection {
 
 #[async_trait]
 impl XtbStreamConnection for BasicXtbStreamConnection {
+
+    type MessageStream = BasicMessageStream;
+
     async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
         let request = SubscribeRequest::default()
             .with_command(command)
@@ -89,7 +97,7 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
         self.assemble_and_send(request, arguments).await
     }
 
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream {
+    async fn make_message_stream(&mut self, filter: StreamFilter) -> Self::MessageStream {
         BasicMessageStream::new(filter, self.sender.subscribe())
     }
 }
