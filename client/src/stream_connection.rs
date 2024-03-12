@@ -37,6 +37,7 @@ pub trait XtbStreamConnection {
 pub struct BasicXtbStreamConnection {
     /// Stream session id used to identify for the stream server
     stream_session_id: String,
+    /// Sender of messages used for delivering messages to `MessageStream` implementors
     sender: Sender<StreamDataMessage>,
     /// Sink used for sending messages to the XTB server
     sink: SplitSink<Stream, Message>,
@@ -44,7 +45,7 @@ pub struct BasicXtbStreamConnection {
 
 
 impl BasicXtbStreamConnection {
-
+    /// Create new instance of the stream connection.
     pub async fn new(url: Url, stream_session_id: String) -> Result<Self, XtbStreamConnectionError> {
         let (sender, _) = channel(64usize);
         let host_clone = url.as_str().to_owned();
@@ -57,6 +58,7 @@ impl BasicXtbStreamConnection {
         })
     }
 
+    /// Build message from request and arguments and send it to the server.
     async fn assemble_and_send<T: Serialize>(&mut self, request: T, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
         let mut obj = to_value(request).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?;
         let prepared_arguments = Self::prepare_arguments(arguments)?;
@@ -70,10 +72,16 @@ impl BasicXtbStreamConnection {
         self.sink.send(message).await.map_err(|err| XtbStreamConnectionError::CannotSend(err))
     }
 
+    /// Check and prepare arguments.
+    ///
+    /// The arguments must be None or Some(Value::Object). Otherwise, an error is returned.
     fn prepare_arguments(arguments: Option<Value>) -> Result<Option<Map<String, Value>>, XtbStreamConnectionError> {
         match arguments {
+            // No arguments are provided
             None => Ok(None),
+            // There is arguments object
             Some(Value::Object(obj)) => Ok(Some(obj)),
+            // Invalid input data
             _ => Err(XtbStreamConnectionError::InvalidArgumentsType)
         }
     }
