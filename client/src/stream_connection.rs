@@ -5,17 +5,18 @@ use serde::Serialize;
 use serde_json::{Map, to_string, to_value, Value};
 use thiserror::Error;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
+use tokio::task::JoinHandle;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
+use tracing::error;
 use url::Url;
 use crate::api::{StreamDataMessage, SubscribeRequest, UnsubscribeRequest};
 
-use crate::listener::Stream;
+use crate::listener::{listen_for_stream_data, Stream, StreamDataMessageHandler};
 
 /// Common interface for stream command api of the XTB.
 #[async_trait]
 pub trait XtbStreamConnection {
-
     /// Type of message stream returned by the `make_message_stream` method.
     type MessageStream: MessageStream;
 
@@ -41,6 +42,8 @@ pub struct BasicXtbStreamConnection {
     sender: Sender<StreamDataMessage>,
     /// Sink used for sending messages to the XTB server
     sink: SplitSink<Stream, Message>,
+    /// Handle used for join of listening task
+    listener_join: JoinHandle<()>,
 }
 
 
@@ -51,10 +54,12 @@ impl BasicXtbStreamConnection {
         let host_clone = url.as_str().to_owned();
         let (conn, _) = connect_async(url).await.map_err(|_| XtbStreamConnectionError::CannotConnect(host_clone))?;
         let (sink, stream) = conn.split();
+        let listener_join = listen_for_stream_data(stream, MessageHandler::new(sender.clone()));
         Ok(Self {
             stream_session_id,
             sender,
-            sink
+            sink,
+            listener_join
         })
     }
 
@@ -88,9 +93,34 @@ impl BasicXtbStreamConnection {
 }
 
 
+/// Handle incoming data messages from stream
+struct MessageHandler {
+    /// Broadcast sender for messages
+    sender: Sender<StreamDataMessage>,
+}
+
+
+impl MessageHandler {
+    /// Create new instance of the MessageHandler
+    pub fn new(sender: Sender<StreamDataMessage>) -> Self {
+        Self { sender }
+    }
+}
+
+
+#[async_trait]
+impl StreamDataMessageHandler for MessageHandler {
+    async fn handle_message(&self, message: StreamDataMessage) {
+        match self.sender.send(message) {
+            Err(err) => error!("Cannot broadcast message: {}", err),
+            _ => ()
+        }
+    }
+}
+
+
 #[async_trait]
 impl XtbStreamConnection for BasicXtbStreamConnection {
-
     type MessageStream = BasicMessageStream;
 
     async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
@@ -129,7 +159,7 @@ pub enum StreamFilter {
     /// defined by `name` and the field is equal to `value`.
     FieldValue { name: String, value: Value },
     /// Apply custom filter fn
-    Custom(Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>)
+    Custom(Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>),
 }
 
 
@@ -142,7 +172,7 @@ impl StreamFilter {
             Self::Command(cmd) => Self::resolve_command(msg, cmd),
             Self::All(ops) => Self::resolve_all(msg, ops),
             Self::Any(ops) => Self::resolve_any(msg, ops),
-            Self::FieldValue {name, value} => Self::resolve_field_value(msg, name, value),
+            Self::FieldValue { name, value } => Self::resolve_field_value(msg, name, value),
             Self::Custom(cbk) => Self::resolve_custom(msg, cbk),
         }
     }
@@ -159,7 +189,7 @@ impl StreamFilter {
 
     /// resolve StreamFilter::Command
     fn resolve_command(msg: &StreamDataMessage, command: &str) -> bool {
-        return msg.command.as_str() == command
+        return msg.command.as_str() == command;
     }
 
     /// resolve StreamFilter::All
@@ -181,7 +211,7 @@ impl StreamFilter {
                 } else {
                     false
                 }
-            },
+            }
             _ => false
         }
     }
@@ -222,7 +252,7 @@ pub struct BasicMessageStream {
     /// The filter for messages
     filter: StreamFilter,
     /// Stream with incoming messages
-    stream: Receiver<StreamDataMessage>
+    stream: Receiver<StreamDataMessage>,
 }
 
 
@@ -242,7 +272,7 @@ impl MessageStream for BasicMessageStream {
     async fn next(&mut self) -> Option<StreamDataMessage> {
         while let Some(msg) = self.stream.recv().await.ok() {
             if self.filter.test_message(&msg) {
-                return Some(msg)
+                return Some(msg);
             }
         }
         None
