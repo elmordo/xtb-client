@@ -97,27 +97,82 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
 
 #[derive(Default)]
 pub enum StreamFilter {
+    /// Always true
     #[default]
-    Noop,
+    Always,
+    /// Always false
+    Never,
+    /// Command name must match
     Command(String),
-    And(Vec<StreamFilter>),
-    Or(Vec<StreamFilter>),
+    /// All inner filters must match
+    All(Vec<StreamFilter>),
+    /// Any inner filter must match
+    Any(Vec<StreamFilter>),
+    /// Value of field in `data` must match
+    /// Return true if and only if the `data` field is type of `Object::Value`, contains key
+    /// defined by `name` and the field is equal to `value`.
     FieldValue { name: String, value: Value },
+    /// Apply custom filter fn
     Custom(Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>)
 }
 
 
 impl StreamFilter {
+    /// Return true if the filter match, return false otherwise.
     pub fn test_message(&self, msg: &StreamDataMessage) -> bool {
-        todo!()
+        match self {
+            Self::Always => Self::resolve_always(msg),
+            Self::Never => Self::resolve_never(msg),
+            Self::Command(cmd) => Self::resolve_command(msg, cmd),
+            Self::All(ops) => Self::resolve_all(msg, ops),
+            Self::Any(ops) => Self::resolve_any(msg, ops),
+            Self::FieldValue {name, value} => Self::resolve_field_value(msg, name, value),
+            Self::Custom(cbk) => Self::resolve_custom(msg, cbk),
+        }
     }
 
-    fn resolve_noop(msg: &StreamDataMessage) -> bool {
+    /// resolve StreamFilter::Always
+    fn resolve_always(msg: &StreamDataMessage) -> bool {
         true
     }
 
+    /// resolve StreamFilter::Never
+    fn resolve_never(msg: &StreamDataMessage) -> bool {
+        false
+    }
+
+    /// resolve StreamFilter::Command
     fn resolve_command(msg: &StreamDataMessage, command: &str) -> bool {
-        todo!()
+        return msg.command.as_str() == command
+    }
+
+    /// resolve StreamFilter::All
+    fn resolve_all(msg: &StreamDataMessage, ops: &Vec<StreamFilter>) -> bool {
+        ops.iter().all(|f| f.test_message(msg))
+    }
+
+    /// resolve StreamFilter::Any
+    fn resolve_any(msg: &StreamDataMessage, ops: &Vec<StreamFilter>) -> bool {
+        ops.iter().any(|f| f.test_message(msg))
+    }
+
+    /// resolve StreamFilter::FieldValue
+    fn resolve_field_value(msg: &StreamDataMessage, field_name: &str, field_value: &Value) -> bool {
+        match field_value {
+            Value::Object(obj) => {
+                if let Some(field_content) = obj.get(field_name) {
+                    field_content == field_value
+                } else {
+                    false
+                }
+            },
+            _ => false
+        }
+    }
+
+    /// resolve StreamFilter::Custom
+    fn resolve_custom(msg: &StreamDataMessage, cbk: &Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>) -> bool {
+        (*cbk)(msg)
     }
 }
 

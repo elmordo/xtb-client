@@ -61,7 +61,7 @@ pub struct SubscribeRequest {
 #[setters(into, prefix = "with_", strip_option)]
 pub struct UnsubscribeRequest {
     /// Command to be unsubscribed from
-    command: String,
+    pub command: String,
 }
 
 
@@ -70,9 +70,9 @@ pub struct UnsubscribeRequest {
 #[serde(rename_all = "camelCase")]
 pub struct StreamDataMessage {
     /// Source command
-    command: String,
+    pub command: String,
     /// Payload
-    data: Value
+    pub data: Value
 }
 
 
