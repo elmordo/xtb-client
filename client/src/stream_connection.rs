@@ -3,7 +3,7 @@ use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Map, Value};
 use thiserror::Error;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
@@ -25,7 +25,7 @@ pub trait XtbStreamConnection {
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
 
     /// Create message stream builder
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> MessageStream;
+    async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream;
 }
 
 
@@ -90,7 +90,7 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
         self.build_and_send(command, arguments, false).await
     }
 
-    async fn make_message_stream(&mut self, filter: StreamFilter) -> MessageStream {
+    async fn make_message_stream(&mut self, filter: StreamFilter) -> BasicMessageStream {
         todo!()
     }
 }
@@ -108,6 +108,21 @@ pub enum StreamFilter {
 }
 
 
+impl StreamFilter {
+    pub fn test_message(&self, msg: &ProcessedMessage) -> bool {
+        todo!()
+    }
+
+    fn resolve_noop(msg: &ProcessedMessage) -> bool {
+        true
+    }
+
+    fn resolve_command(msg: &ProcessedMessage, command: &str) -> bool {
+        todo!()
+    }
+}
+
+
 #[derive(Debug, Error)]
 pub enum XtbStreamConnectionError {
     #[error("Cannot connect to server ({0}")]
@@ -121,4 +136,32 @@ pub enum XtbStreamConnectionError {
 }
 
 
-pub struct MessageStream {}
+#[async_trait]
+pub trait MessageStream {
+    /// Get next message from stream
+    ///
+    /// # Returns
+    ///
+    /// `Some(x)` - next message in stream
+    /// `None` - there is no more message
+    async fn next(&mut self) -> Option<ProcessedMessage>;
+}
+
+
+pub struct BasicMessageStream {
+    filter: StreamFilter,
+    stream: Receiver<ProcessedMessage>
+}
+
+
+#[async_trait]
+impl MessageStream for BasicMessageStream {
+    async fn next(&mut self) -> Option<ProcessedMessage> {
+        while let Some(msg) = self.stream.recv().await.ok() {
+            if self.filter.test_message(&msg) {
+                return Some(msg)
+            }
+        }
+        None
+    }
+}
