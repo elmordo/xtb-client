@@ -27,7 +27,7 @@ pub trait XtbStreamConnection {
 
     /// Unsubscribe from data stream from the XTB server
     ///
-    /// The `arguments` must be `Value::Object`. Any other variants causes an error
+    /// The `arguments` value must be `Value::Object` or `Value::Null`. Any other variants causes an error
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
 
     /// Create message stream builder
@@ -79,13 +79,14 @@ impl BasicXtbStreamConnection {
 
     /// Check and prepare arguments.
     ///
-    /// The arguments must be None or Some(Value::Object). Otherwise, an error is returned.
+    /// The arguments must be None or Some(Value::Object) or Some(Value::Null). Otherwise, an error is returned.
     fn prepare_arguments(arguments: Option<Value>) -> Result<Option<Map<String, Value>>, XtbStreamConnectionError> {
         match arguments {
             // No arguments are provided
             None => Ok(None),
             // There is arguments object
             Some(Value::Object(obj)) => Ok(Some(obj)),
+            Some(Value::Null) => Ok(None),
             // Invalid input data
             _ => Err(XtbStreamConnectionError::InvalidArgumentsType)
         }
