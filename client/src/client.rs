@@ -1,13 +1,21 @@
 use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
 use derive_setters::Setters;
-use serde_json::to_value;
+use serde_json::{to_value, Value};
 use thiserror::Error;
+use tokio::spawn;
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
+use tokio_tungstenite::tungstenite::Message;
+use tracing::{debug, error};
 use url::Url;
 
-use crate::{BasicXtbConnection, BasicXtbStreamConnection, XtbConnection, XtbConnectionError, XtbStreamConnectionError};
+use crate::{BasicXtbConnection, BasicXtbStreamConnection, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::LoginRequest;
+use crate::schema::{LoginRequest, PingRequest, StreamPingSubscribe};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -16,6 +24,7 @@ pub struct XtbClientBuilder {
     stream_api_url: Option<String>,
     app_id: Option<String>,
     app_name: Option<String>,
+    ping_period: Option<u64>
 }
 
 
@@ -26,6 +35,7 @@ impl XtbClientBuilder {
             stream_api_url: Some(stream_api_url.to_string()),
             app_id: None,
             app_name: None,
+            ping_period: None
         }
     }
 
@@ -58,7 +68,7 @@ impl XtbClientBuilder {
 
         let stream_connection = BasicXtbStreamConnection::new(stream_api_url, stream_session_id).await.map_err(|err| XtbClientBuilderError::CannotMakeStreamConnection(err))?;
 
-        Ok(XtbClient::new(connection, stream_connection))
+        Ok(XtbClient::new(connection, stream_connection, self.ping_period.unwrap_or(120)))
     }
 
     fn make_url(source: Option<String>) -> Result<Url, XtbClientBuilderError> {
@@ -87,8 +97,10 @@ pub enum XtbClientBuilderError {
 
 
 pub struct XtbClient {
-    connection: BasicXtbConnection,
-    stream_connection: BasicXtbStreamConnection,
+    connection: Arc<Mutex<BasicXtbConnection>>,
+    stream_connection: Arc<Mutex<BasicXtbStreamConnection>>,
+    ping_join_handle: JoinHandle<()>,
+    stream_ping_join_handle: JoinHandle<()>,
 }
 
 
@@ -97,10 +109,109 @@ impl XtbClient {
         XtbClientBuilder::default()
     }
 
-    pub fn new(connection: BasicXtbConnection, stream_connection: BasicXtbStreamConnection) -> Self {
-        Self {
+    pub fn new(connection: BasicXtbConnection, stream_connection: BasicXtbStreamConnection, ping_period: u64) -> Self {
+        let connection = Arc::new(Mutex::new(connection));
+        let stream_connection = Arc::new(Mutex::new(stream_connection));
+
+        let ping_join_handle = spawn_ping(connection.clone(), ping_period);
+        let stream_ping_join_handle = spawn_stream_ping(stream_connection.clone(), ping_period);
+
+        let mut instance = Self {
             connection,
             stream_connection,
-        }
+            ping_join_handle,
+            stream_ping_join_handle,
+        };
+
+        instance
     }
+
+    fn spawn_pings(&mut self) {
+
+    }
+}
+
+
+impl Drop for XtbClient {
+    fn drop(&mut self) {
+        self.ping_join_handle.abort();
+        self.stream_ping_join_handle.abort();
+    }
+}
+
+
+/// Spawn tokio green thread and to send ping periodically to sync connection
+///
+/// # Arguments
+///
+/// * conn - the stream connection
+/// * ping_secs - number of seconds between each ping
+///
+/// # Panics
+///
+/// The ping message cannot be serialized. The serialization is done before the green thread is run
+///
+/// # Returns
+///
+/// `JoinHandle` of the green thread
+fn spawn_ping(conn: Arc<Mutex<BasicXtbConnection>>, ping_secs: u64) -> JoinHandle<()> {
+    let ping_value = to_value(PingRequest::default()).expect("Cannot serialize ping message");
+    spawn(async move {
+        let mut idx = 1u64;
+        loop {
+            let response_promise = {
+                let mut conn = conn.lock().await;
+                debug!("Sending ping #{} to connection", idx);
+                match conn.send_command("ping", Some(ping_value.clone())).await {
+                    Ok(resp) => Some(resp),
+                    Err(err) => {
+                        error!("Cannot send ping #{}: {:?}", idx, err);
+                        None
+                    }
+                }
+            };
+            if let Some(response_promise) = response_promise {
+                match response_promise.await {
+                    Ok(_) => (),
+                    Err(err) => error!("Cannot await the ping response #{}", idx)
+                }
+            }
+            idx += 1;
+            sleep(Duration::from_secs(ping_secs)).await;
+        }
+    })
+}
+
+
+/// Spawn tokio green thread and to send ping periodically to stream connection
+///
+/// # Arguments
+///
+/// * conn - the stream connection
+/// * ping_secs - number of seconds between each ping
+///
+/// # Panics
+///
+/// The ping message cannot be serialized. The serialization is done before the green thread is run
+///
+/// # Returns
+///
+/// `JoinHandle` of the green thread
+fn spawn_stream_ping(conn: Arc<Mutex<BasicXtbStreamConnection>>, ping_secs: u64) -> JoinHandle<()> {
+    let ping_value = to_value(StreamPingSubscribe::default()).expect("Cannot serialize the stream ping message");
+    spawn(async move {
+        loop {
+            let mut idx = 1u64;
+            {
+                debug!("Sending ping #{} to stream connection", idx);
+                let mut conn = conn.lock().await;
+                match conn.subscribe("ping", Some(ping_value.clone())).await {
+                    Ok(_) => (),
+                    Err(err) => error!("Cannot send ping #{}: {:?}", idx, err)
+                }
+            }
+            idx += 1;
+            sleep(Duration::from_secs(ping_secs)).await;
+        }
+    })
 }
