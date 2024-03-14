@@ -16,7 +16,7 @@ use url::Url;
 
 use crate::{BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_LOGIN, COMMAND_PING, LoginRequest, PingRequest, STREAM_PING, StreamPingSubscribe};
+use crate::schema::{COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesSubscribe, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -98,11 +98,15 @@ pub enum XtbClientBuilderError {
 
 #[async_trait]
 pub trait ApiClient {
+
+    /// Error returned from methods when command failed
+    type Error;
+
     /// Returns array of all symbols available for the user.
-    async fn get_all_symbols(&mut self) -> ResponsePromise;
+    async fn get_all_symbols(&mut self, request: GetAllSymbolsRequest) -> Result<GetAllSymbolsResponse, Self::Error>;
 
     /// Returns calendar with market events.
-    async fn get_calendar(&mut self) -> ResponsePromise;
+    async fn get_calendar(&mut self, request: GetCalendarRequest) -> Result<GetCalendarResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent
     /// getCandles which is the preferred way of retrieving current candle data. Returns chart info,
@@ -129,70 +133,89 @@ pub trait ApiClient {
     // * request charts of 5 minutes period, for 3 months time span, back from now;
     // * response: you are guaranteed to get 1 month of 5 minutes charts; because, 5 minutes period
     // charts are not accessible 2 months and 3 months back from now.
-    async fn get_chart_last_request(&mut self) -> ResponsePromise;
+    async fn get_chart_last_request(&mut self, request: GetChartLastRequestRequest) -> Result<GetChartLastRequestResponse, Self::Error>;
+
+    /// Please note that this function can be usually replaced by its streaming equivalent
+    /// getCandles which is the preferred way of retrieving current candle data. Returns chart info
+    /// with data between given start and end dates.
+    //
+    // Limitations: there are limitations in charts data availability. Detailed ranges for charts
+    // data, what can be accessed with specific period, are as follows:
+    //
+    // * PERIOD_M1 --- <0-1) month, i.e. one month time
+    // * PERIOD_M30 --- <1-7) month, six months time
+    // * PERIOD_H4 --- <7-13) month, six months time
+    // * PERIOD_D1 --- 13 month, and earlier on
+    //
+    // Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible
+    // in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30,
+    // PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability
+    // is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible
+    // for 1.5 months back from now, where 1.0 months is guaranteed.
+    async fn get_chart_range_request(&mut self, request: GetChartRangeRequestRequest) -> Result<GetChartRangeRequestResponse, Self::Error>;
 
     /// Returns calculation of commission and rate of exchange. The value is calculated as expected
     /// value, and therefore might not be perfectly accurate.
-    async fn get_commission_def(&mut self) -> ResponsePromise;
+    async fn get_commission_def(&mut self, request: GetCommissionDefRequest) -> Result<GetCommissionDefResponse, Self::Error>;
 
     /// Returns information about account currency, and account leverage.
-    async fn get_current_user_data(&mut self) -> ResponsePromise;
+    async fn get_current_user_data(&mut self, request: GetCurrentUserDataRequest) -> Result<GetCurrentUserDataResponse, Self::Error>;
 
     /// Returns IBs data from the given time range.
-    async fn get_ibs_history(&mut self) -> ResponsePromise;
+    async fn get_ibs_history(&mut self, request: GetIbsHistoryRequest) -> Result<GetIbsHistoryResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent
     /// getBalance which is the preferred way of retrieving account indicators. Returns various
     /// account indicators.
-    async fn get_margin_level(&mut self) -> ResponsePromise;
+    async fn get_margin_level(&mut self, request: GetMarginLevelRequest) -> Result<GetMarginLevelResponse, Self::Error>;
 
     /// Returns expected margin for given instrument and volume. The value is calculated as expected
     /// margin value, and therefore might not be perfectly accurate.
-    async fn get_margin_trade(&mut self) -> ResponsePromise;
+    async fn get_margin_trade(&mut self, request: GetMarginTradeRequest) -> Result<GetMarginTradeResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent getNews
     /// which is the preferred way of retrieving news data. Returns news from trading server which
     /// were sent within specified period of time.
-    async fn get_news(&mut self) -> ResponsePromise;
+    async fn get_news(&mut self, request: GetNewsRequest) -> Result<GetNewsResponse, Self::Error>;
 
     /// Calculates estimated profit for given deal data Should be used for calculator-like apps
     /// only. Profit for opened transactions should be taken from server, due to higher precision of
     /// server calculation.
-    async fn get_profit_calculation(&mut self) -> ResponsePromise;
+    async fn get_profit_calculation(&mut self, request: GetProfitCalculationRequest) -> Result<GetProfitCalculationResponse, Self::Error>;
 
     /// Returns current time on trading server.
-    async fn get_server_time(&mut self) -> ResponsePromise;
+    async fn get_server_time(&mut self, request: GetServerTimeRequest) -> Result<GetServerTimeResponse, Self::Error>;
 
     /// Returns a list of step rules for DMAs.
-    async fn get_step_rules(&mut self) -> ResponsePromise;
+    async fn get_step_rules(&mut self, request: GetStepRulesRequest) -> Result<GetStepRulesResponse, Self::Error>;
 
     /// Returns information about symbol available for the user.
-    async fn get_symbol(&mut self) -> ResponsePromise;
+    async fn get_symbol(&mut self, request: GetSymbolRequest) -> Result<GetSymbolResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent
     /// getTickPrices which is the preferred way of retrieving ticks data. Returns array of current
     /// quotations for given symbols, only quotations that changed from given timestamp are
     /// returned. New timestamp obtained from output will be used as an argument of the next call
     /// of this command.
-    async fn get_tick_prices(&mut self) -> ResponsePromise;
+    async fn get_tick_prices(&mut self, request: GetTickPricesRequest) -> Result<GetTickPricesResponse, Self::Error>;
 
     /// Returns array of trades listed in orders argument.
-    async fn get_trade_records(&mut self) -> ResponsePromise;
+    async fn get_trade_records(&mut self, request: GetTradeRecordsRequest) -> Result<GetTradeRecordsResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent getTrades
     /// which is the preferred way of retrieving trades data. Returns array of user's trades.
-    async fn get_trades(&mut self) -> ResponsePromise;
+    async fn get_trades(&mut self, request: GetTradesRequest) -> Result<GetTradesResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent getTrades
     /// which is the preferred way of retrieving trades data. Returns array of user's trades which
     /// were closed within specified period of time.
-    async fn get_trades_history(&mut self) -> ResponsePromise;
+    async fn get_trades_history(&mut self, request: GetTradesHistoryRequest) -> Result<GetTradesHistoryResponse, Self::Error>;
 
     /// Returns quotes and trading times.
-    async fn get_trading_hours(&mut self) -> ResponsePromise;
+    async fn get_trading_hours(&mut self, request: GetTradingHoursRequest) -> Result<GetTradingHoursResponse, Self::Error>;
 
     /// Returns the current API version.
-    async fn get_version(&mut self) -> ResponsePromise;
+    async fn get_version(&mut self, request: GetVersionRequest) -> Result<GetVersionResponse, Self::Error>;
 
     /// Starts trade transaction. tradeTransaction sends main transaction information to the server.
     ///
@@ -205,14 +228,14 @@ pub trait ApiClient {
     /// tradeTransactionStatus command with the order number, that came back with the response of
     /// the tradeTransaction command. You can find the example here:
     /// https://developers.xstore.pro/api/tutorials/opening_and_closing_trades2
-    async fn trade_transaction(&mut self) -> ResponsePromise;
+    async fn trade_transaction(&mut self, request: TradeTransactionRequest) -> Result<TradeTransactionResponse, Self::Error>;
 
     /// Description: Please note that this function can be usually replaced by its streaming
     /// equivalent getTradeStatus which is the preferred way of retrieving transaction status data.
     /// Returns current transaction status. At any time of transaction processing client might check
     /// the status of transaction on server side. In order to do that client must provide unique
     /// order taken from tradeTransaction invocation.
-    async fn trade_transaction_status(&mut self) -> ResponsePromise;
+    async fn trade_transaction_status(&mut self, request: TradeTransactionStatusRequest) -> Result<TradeTransactionStatusResponse, Self::Error>;
 }
 
 
@@ -224,62 +247,62 @@ pub trait StreamApiClient {
     /// different streamSessionId can be invoked. It will cause sending streaming data for multiple
     /// login sessions in one streaming connection. streamSessionId is valid until logout command is
     /// performed on main connection or main connection is disconnected.
-    async fn get_balance(&mut self);
+    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe);
 
     /// Stop receiving balance
-    async fn stop_balance(&mut self);
+    async fn stop_balance(&mut self, arguments: StreamGetBalanceUnsubscribe);
 
     /// Subscribes for and unsubscribes from API chart candles. The interval of every candle
     /// is 1 minute. A new candle arrives every minute.
-    async fn get_candles(&mut self);
+    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe);
 
     /// Stop receiving candles
-    async fn stop_candles(&mut self);
+    async fn stop_candles(&mut self, arguments: StreamGetCandlesUnsubscribe);
 
     /// Subscribes for and unsubscribes from 'keep alive' messages. A new 'keep alive' message
     /// is sent by the API every 3 seconds.
-    async fn get_keep_alive(&mut self);
+    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe);
 
     /// Stop receiving keep alives
-    async fn stop_keep_alive(&mut self);
+    async fn stop_keep_alive(&mut self, arguments: StreamGetKeepAliveUnsubscribe);
 
     /// Subscribes for and unsubscribes from news.
-    async fn get_news(&mut self);
+    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe);
 
     /// Stop receiving news
-    async fn stop_news(&mut self);
+    async fn stop_news(&mut self, arguments: StreamGetNewsUnsubscribe);
 
     /// Subscribes for and unsubscribes from profits.
-    async fn get_profits(&mut self);
+    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe);
 
     /// Stop receiving news
-    async fn stop_profits(&mut self);
+    async fn stop_profits(&mut self, arguments: StreamGetProfitUnsubscribe);
 
     /// Establishes subscription for quotations and allows to obtain the relevant information
     /// in real-time, as soon as it is available in the system. The getTickPrices command can
     /// be invoked many times for the same symbol, but only one subscription for a given symbol
     /// will be created. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_tick_prices(&mut self);
+    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe);
 
     /// Stop receiving prices
-    async fn stop_tick_prices(&mut self);
+    async fn stop_tick_prices(&mut self, arguments: StreamGetTickPricesUnsubscribe);
 
     /// Establishes subscription for user trade status data and allows to obtain the relevant
     /// information in real-time, as soon as it is available in the system. Please beware that when
     /// multiple records are available, the order in which they are received is not guaranteed.
-    async fn get_trades(&mut self);
+    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe);
 
     /// Stop receiving trades
-    async fn stop_trades(&mut self);
+    async fn stop_trades(&mut self, arguments: StreamGetTradesUnsubscribe);
 
     /// Allows to get status for sent trade requests in real-time, as soon as it is available
     /// in the system. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_trade_status(&mut self);
+    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe);
 
     /// Stop receiving trade statues
-    async fn stop_trade_status(&mut self);
+    async fn stop_trade_status(&mut self, arguments: StreamGetTradeStatusUnsubscribe);
 }
 
 
