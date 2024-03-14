@@ -15,7 +15,7 @@ use url::Url;
 
 use crate::{BasicXtbConnection, BasicXtbStreamConnection, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{LoginRequest, PingRequest, StreamPingSubscribe};
+use crate::schema::{COMMAND_LOGIN, COMMAND_PING, LoginRequest, PingRequest, STREAM_PING, StreamPingSubscribe};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -57,7 +57,7 @@ impl XtbClientBuilder {
         let login_request_value = to_value(login_request).map_err(|err| XtbClientBuilderError::UnexpectedError(format!("{:?}", err)))?;
 
         let response = connection
-            .send_command("login", Some(login_request_value)).await
+            .send_command(COMMAND_LOGIN, Some(login_request_value)).await
             .map_err(|err| XtbClientBuilderError::UnexpectedError(format!("{:?}", err)))?.await
             .map_err(|err| XtbClientBuilderError::UnexpectedError(format!("{:?}", err)))?;
 
@@ -125,10 +125,6 @@ impl XtbClient {
 
         instance
     }
-
-    fn spawn_pings(&mut self) {
-
-    }
 }
 
 
@@ -162,7 +158,7 @@ fn spawn_ping(conn: Arc<Mutex<BasicXtbConnection>>, ping_secs: u64) -> JoinHandl
             let response_promise = {
                 let mut conn = conn.lock().await;
                 debug!("Sending ping #{} to connection", idx);
-                match conn.send_command("ping", Some(ping_value.clone())).await {
+                match conn.send_command(COMMAND_PING, Some(ping_value.clone())).await {
                     Ok(resp) => Some(resp),
                     Err(err) => {
                         error!("Cannot send ping #{}: {:?}", idx, err);
@@ -205,7 +201,7 @@ fn spawn_stream_ping(conn: Arc<Mutex<BasicXtbStreamConnection>>, ping_secs: u64)
             {
                 debug!("Sending ping #{} to stream connection", idx);
                 let mut conn = conn.lock().await;
-                match conn.subscribe("ping", Some(ping_value.clone())).await {
+                match conn.subscribe(STREAM_PING, Some(ping_value.clone())).await {
                     Ok(_) => (),
                     Err(err) => error!("Cannot send ping #{}: {:?}", idx, err)
                 }
