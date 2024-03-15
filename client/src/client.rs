@@ -16,7 +16,7 @@ use url::Url;
 
 use crate::{BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesSubscribe, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -113,45 +113,45 @@ pub trait ApiClient {
     /// from start date to the current time. If the chosen period of CHART_LAST_INFO_RECORD is
     /// greater than 1 minute, the last candle returned by the API can change until the end of the
     /// period (the candle is being automatically updated every minute).
-    //
-    // Limitations: there are limitations in charts data availability. Detailed ranges for charts
-    // data, what can be accessed with specific period, are as follows:
-    //
-    // * PERIOD_M1 --- <0-1) month, i.e. one-month time
-    // * PERIOD_M30 --- <1-7) month, six months time
-    // * PERIOD_H4 --- <7-13) month, six months time
-    // * PERIOD_D1 --- 13 month, and earlier on
-    //
-    // Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible
-    // in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30,
-    // PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability
-    // is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible
-    // for 1.5 months back from now, where 1.0 months is guaranteed.
-    //
-    // Example scenario:
-    //
-    // * request charts of 5 minutes period, for 3 months time span, back from now;
-    // * response: you are guaranteed to get 1 month of 5 minutes charts; because, 5 minutes period
-    // charts are not accessible 2 months and 3 months back from now.
+    ///
+    /// Limitations: there are limitations in charts data availability. Detailed ranges for charts
+    /// data, what can be accessed with specific period, are as follows:
+    ///
+    /// * PERIOD_M1 --- <0-1) month, i.e. one-month time
+    /// * PERIOD_M30 --- <1-7) month, six months time
+    /// * PERIOD_H4 --- <7-13) month, six months time
+    /// * PERIOD_D1 --- 13 month, and earlier on
+    ///
+    /// Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible
+    /// in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30,
+    /// PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability
+    /// is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible
+    /// for 1.5 months back from now, where 1.0 months is guaranteed.
+    ///
+    /// Example scenario:
+    ///
+    /// * request charts of 5 minutes period, for 3 months time span, back from now;
+    /// * response: you are guaranteed to get 1 month of 5 minutes charts; because, 5 minutes period
+    /// charts are not accessible 2 months and 3 months back from now.
     async fn get_chart_last_request(&mut self, request: GetChartLastRequestRequest) -> Result<GetChartLastRequestResponse, Self::Error>;
 
     /// Please note that this function can be usually replaced by its streaming equivalent
     /// getCandles which is the preferred way of retrieving current candle data. Returns chart info
     /// with data between given start and end dates.
-    //
-    // Limitations: there are limitations in charts data availability. Detailed ranges for charts
-    // data, what can be accessed with specific period, are as follows:
-    //
-    // * PERIOD_M1 --- <0-1) month, i.e. one month time
-    // * PERIOD_M30 --- <1-7) month, six months time
-    // * PERIOD_H4 --- <7-13) month, six months time
-    // * PERIOD_D1 --- 13 month, and earlier on
-    //
-    // Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible
-    // in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30,
-    // PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability
-    // is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible
-    // for 1.5 months back from now, where 1.0 months is guaranteed.
+    ///
+    /// Limitations: there are limitations in charts data availability. Detailed ranges for charts
+    /// data, what can be accessed with specific period, are as follows:
+    ///
+    /// * PERIOD_M1 --- <0-1) month, i.e. one month time
+    /// * PERIOD_M30 --- <1-7) month, six months time
+    /// * PERIOD_H4 --- <7-13) month, six months time
+    /// * PERIOD_D1 --- 13 month, and earlier on
+    ///
+    /// Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible
+    /// in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30,
+    /// PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability
+    /// is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible
+    /// for 1.5 months back from now, where 1.0 months is guaranteed.
     async fn get_chart_range_request(&mut self, request: GetChartRangeRequestRequest) -> Result<GetChartRangeRequestResponse, Self::Error>;
 
     /// Returns calculation of commission and rate of exchange. The value is calculated as expected
@@ -244,44 +244,46 @@ pub trait StreamApiClient {
     /// Error returned from the client when something went wrong
     type Error;
 
+    type Stream<T>;
+
     /// Each streaming command takes as an argument streamSessionId which is sent in response
     /// message for login command performed in main connection. streamSessionId token allows to
     /// identify user in streaming connection. In one streaming connection multiple commands with
     /// different streamSessionId can be invoked. It will cause sending streaming data for multiple
     /// login sessions in one streaming connection. streamSessionId is valid until logout command is
     /// performed on main connection or main connection is disconnected.
-    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe);
+    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Self::Stream<StreamGetBalanceData>;
 
     /// Subscribes for and unsubscribes from API chart candles. The interval of every candle
     /// is 1 minute. A new candle arrives every minute.
-    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe);
+    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Self::Stream<StreamGetCandlesData>;
 
     /// Subscribes for and unsubscribes from 'keep alive' messages. A new 'keep alive' message
     /// is sent by the API every 3 seconds.
-    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe);
+    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Self::Stream<StreamGetKeepAliveData>;
 
     /// Subscribes for and unsubscribes from news.
-    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe);
+    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Self::Stream<StreamGetNewsData>;
 
     /// Subscribes for and unsubscribes from profits.
-    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe);
+    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Self::Stream<StreamGetProfitData>;
 
     /// Establishes subscription for quotations and allows to obtain the relevant information
     /// in real-time, as soon as it is available in the system. The getTickPrices command can
     /// be invoked many times for the same symbol, but only one subscription for a given symbol
     /// will be created. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe);
+    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Self::Stream<StreamGetTickPricesData>;
 
     /// Establishes subscription for user trade status data and allows to obtain the relevant
     /// information in real-time, as soon as it is available in the system. Please beware that when
     /// multiple records are available, the order in which they are received is not guaranteed.
-    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe);
+    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Self::Stream<StreamGetTradesData>;
 
     /// Allows to get status for sent trade requests in real-time, as soon as it is available
     /// in the system. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe);
+    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Self::Stream<StreamGetTradeStatusData>;
 }
 
 
