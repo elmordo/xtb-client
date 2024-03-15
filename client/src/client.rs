@@ -241,6 +241,9 @@ pub trait ApiClient {
 
 #[async_trait]
 pub trait StreamApiClient {
+    /// Error returned from the client when something went wrong
+    type Error;
+
     /// Each streaming command takes as an argument streamSessionId which is sent in response
     /// message for login command performed in main connection. streamSessionId token allows to
     /// identify user in streaming connection. In one streaming connection multiple commands with
@@ -249,34 +252,19 @@ pub trait StreamApiClient {
     /// performed on main connection or main connection is disconnected.
     async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe);
 
-    /// Stop receiving balance
-    async fn stop_balance(&mut self, arguments: StreamGetBalanceUnsubscribe);
-
     /// Subscribes for and unsubscribes from API chart candles. The interval of every candle
     /// is 1 minute. A new candle arrives every minute.
     async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe);
-
-    /// Stop receiving candles
-    async fn stop_candles(&mut self, arguments: StreamGetCandlesUnsubscribe);
 
     /// Subscribes for and unsubscribes from 'keep alive' messages. A new 'keep alive' message
     /// is sent by the API every 3 seconds.
     async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe);
 
-    /// Stop receiving keep alives
-    async fn stop_keep_alive(&mut self, arguments: StreamGetKeepAliveUnsubscribe);
-
     /// Subscribes for and unsubscribes from news.
     async fn get_news(&mut self, arguments: StreamGetNewsSubscribe);
 
-    /// Stop receiving news
-    async fn stop_news(&mut self, arguments: StreamGetNewsUnsubscribe);
-
     /// Subscribes for and unsubscribes from profits.
     async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe);
-
-    /// Stop receiving news
-    async fn stop_profits(&mut self, arguments: StreamGetProfitUnsubscribe);
 
     /// Establishes subscription for quotations and allows to obtain the relevant information
     /// in real-time, as soon as it is available in the system. The getTickPrices command can
@@ -285,26 +273,16 @@ pub trait StreamApiClient {
     /// they are received is not guaranteed.
     async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe);
 
-    /// Stop receiving prices
-    async fn stop_tick_prices(&mut self, arguments: StreamGetTickPricesUnsubscribe);
-
     /// Establishes subscription for user trade status data and allows to obtain the relevant
     /// information in real-time, as soon as it is available in the system. Please beware that when
     /// multiple records are available, the order in which they are received is not guaranteed.
     async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe);
 
-    /// Stop receiving trades
-    async fn stop_trades(&mut self, arguments: StreamGetTradesUnsubscribe);
-
     /// Allows to get status for sent trade requests in real-time, as soon as it is available
     /// in the system. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
     async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe);
-
-    /// Stop receiving trade statues
-    async fn stop_trade_status(&mut self, arguments: StreamGetTradeStatusUnsubscribe);
 }
-
 
 
 pub struct XtbClient {
