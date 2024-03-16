@@ -4,7 +4,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use derive_setters::Setters;
-use serde_json::{to_value, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{from_value, to_value, Value};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::Mutex;
@@ -16,7 +17,7 @@ use url::Url;
 
 use crate::{BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -25,7 +26,7 @@ pub struct XtbClientBuilder {
     stream_api_url: Option<String>,
     app_id: Option<String>,
     app_name: Option<String>,
-    ping_period: Option<u64>
+    ping_period: Option<u64>,
 }
 
 
@@ -36,7 +37,7 @@ impl XtbClientBuilder {
             stream_api_url: Some(stream_api_url.to_string()),
             app_id: None,
             app_name: None,
-            ping_period: None
+            ping_period: None,
         }
     }
 
@@ -63,7 +64,7 @@ impl XtbClientBuilder {
             .map_err(|err| XtbClientBuilderError::UnexpectedError(format!("{:?}", err)))?;
 
         let stream_session_id = match response {
-            ProcessedMessage::ErrorResponse(msg) => return Err(XtbClientBuilderError::LoginFailed {user_id: user_id.to_string(), extra_info: format!("{:?}", msg)}),
+            ProcessedMessage::ErrorResponse(msg) => return Err(XtbClientBuilderError::LoginFailed { user_id: user_id.to_string(), extra_info: format!("{:?}", msg) }),
             ProcessedMessage::Response(response) => response.stream_session_id.unwrap(),
         };
 
@@ -90,15 +91,14 @@ pub enum XtbClientBuilderError {
     #[error("Cannot connect to stream server")]
     CannotMakeStreamConnection(XtbStreamConnectionError),
     #[error("Login failed for user: {user_id} ({extra_info:?})")]
-    LoginFailed { user_id: String, extra_info:  String },
+    LoginFailed { user_id: String, extra_info: String },
     #[error("Something gets horribly wrong: {0}")]
-    UnexpectedError(String)
+    UnexpectedError(String),
 }
 
 
 #[async_trait]
 pub trait ApiClient {
-
     /// Error returned from methods when command failed
     type Error;
 
@@ -316,6 +316,46 @@ impl XtbClient {
 
         instance
     }
+
+    async fn send_and_wait_or_default<REQ, RESP>(&mut self, command: &str, request: REQ) -> Result<RESP, XtbClientError>
+        where
+            REQ: Serialize,
+            RESP: for<'de> Deserialize<'de> + Default {
+        self.send_and_wait(command, request).await.map(|val| val.unwrap_or_default())
+    }
+
+    async fn send_and_wait<REQ, RESP>(&mut self, command: &str, request: REQ) -> Result<Option<RESP>, XtbClientError>
+        where
+            REQ: Serialize,
+            RESP: for<'de> Deserialize<'de>
+    {
+        let promise = self.send(command, request).await?;
+        let response = promise.await.map_err(|err| XtbClientError::UnexpectedError)?;
+        match response {
+            ProcessedMessage::Response(response) => {
+                match response.return_data {
+                    Some(data) => from_value(data).map_err(|err| XtbClientError::DeserializationFailed(err)).map(|v| Some(v)),
+                    None => Ok(None)
+                }
+            }
+            ProcessedMessage::ErrorResponse(err) => todo!(),
+        }
+    }
+
+    async fn send<A>(&mut self, command: &str, request: A) -> Result<ResponsePromise, XtbClientError>
+        where
+            A: Serialize
+    {
+        let mut conn = self.connection.lock().await;
+        let payload = to_value(request).map_err(|err| XtbClientError::SerializationFailed(err))?;
+        conn.send_command(command, Some(payload)).await.map_err(|err| {
+            match err {
+                XtbConnectionError::SerializationError(err) => XtbClientError::SerializationFailed(err),
+                XtbConnectionError::CannotSendRequest(err) => XtbClientError::CannotSendCommand(err),
+                _ => XtbClientError::UnexpectedError,
+            }
+        })
+    }
 }
 
 
@@ -324,6 +364,113 @@ impl Drop for XtbClient {
         self.ping_join_handle.abort();
         self.stream_ping_join_handle.abort();
     }
+}
+
+
+#[async_trait]
+impl ApiClient for XtbClient {
+    type Error = XtbClientError;
+
+    async fn get_all_symbols(&mut self, request: GetAllSymbolsRequest) -> Result<GetAllSymbolsResponse, Self::Error> {
+        self.send_and_wait_or_default(COMMAND_GET_ALL_SYMBOLS, request).await
+    }
+
+    async fn get_calendar(&mut self, request: GetCalendarRequest) -> Result<GetCalendarResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_chart_last_request(&mut self, request: GetChartLastRequestRequest) -> Result<GetChartLastRequestResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_chart_range_request(&mut self, request: GetChartRangeRequestRequest) -> Result<GetChartRangeRequestResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_commission_def(&mut self, request: GetCommissionDefRequest) -> Result<GetCommissionDefResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_current_user_data(&mut self, request: GetCurrentUserDataRequest) -> Result<GetCurrentUserDataResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_ibs_history(&mut self, request: GetIbsHistoryRequest) -> Result<GetIbsHistoryResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_margin_level(&mut self, request: GetMarginLevelRequest) -> Result<GetMarginLevelResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_margin_trade(&mut self, request: GetMarginTradeRequest) -> Result<GetMarginTradeResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_news(&mut self, request: GetNewsRequest) -> Result<GetNewsResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_profit_calculation(&mut self, request: GetProfitCalculationRequest) -> Result<GetProfitCalculationResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_server_time(&mut self, request: GetServerTimeRequest) -> Result<GetServerTimeResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_step_rules(&mut self, request: GetStepRulesRequest) -> Result<GetStepRulesResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_symbol(&mut self, request: GetSymbolRequest) -> Result<GetSymbolResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_tick_prices(&mut self, request: GetTickPricesRequest) -> Result<GetTickPricesResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_trade_records(&mut self, request: GetTradeRecordsRequest) -> Result<GetTradeRecordsResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_trades(&mut self, request: GetTradesRequest) -> Result<GetTradesResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_trades_history(&mut self, request: GetTradesHistoryRequest) -> Result<GetTradesHistoryResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_trading_hours(&mut self, request: GetTradingHoursRequest) -> Result<GetTradingHoursResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn get_version(&mut self, request: GetVersionRequest) -> Result<GetVersionResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn trade_transaction(&mut self, request: TradeTransactionRequest) -> Result<TradeTransactionResponse, Self::Error> {
+        todo!()
+    }
+
+    async fn trade_transaction_status(&mut self, request: TradeTransactionStatusRequest) -> Result<TradeTransactionStatusResponse, Self::Error> {
+        todo!()
+    }
+}
+
+
+#[derive(Debug, Error)]
+pub enum XtbClientError {
+    #[error("Cannot serialize arguments")]
+    SerializationFailed(serde_json::Error),
+    #[error("Cannot send command to server")]
+    CannotSendCommand(tokio_tungstenite::tungstenite::Error),
+    #[error("Unexpected error.")]
+    UnexpectedError,
+    #[error("Cannot deserialize data")]
+    DeserializationFailed(serde_json::Error),
 }
 
 
