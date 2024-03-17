@@ -1,4 +1,3 @@
-use tracing::Subscriber;
 use xtb_client::ApiClient;
 use xtb_client::schema::GetAllSymbolsRequest;
 

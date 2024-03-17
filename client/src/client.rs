@@ -1,23 +1,22 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 
+use async_trait::async_trait;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_value, to_value, Value};
+use serde_json::{from_value, to_value};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
-use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error};
 use url::Url;
 
 use crate::{BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_LOGIN, COMMAND_PING, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -307,14 +306,12 @@ impl XtbClient {
         let ping_join_handle = spawn_ping(connection.clone(), ping_period);
         let stream_ping_join_handle = spawn_stream_ping(stream_connection.clone(), ping_period);
 
-        let mut instance = Self {
+        Self {
             connection,
             stream_connection,
             ping_join_handle,
             stream_ping_join_handle,
-        };
-
-        instance
+        }
     }
 
     async fn send_and_wait_or_default<REQ, RESP>(&mut self, command: &str, request: REQ) -> Result<RESP, XtbClientError>
@@ -330,7 +327,10 @@ impl XtbClient {
             RESP: for<'de> Deserialize<'de>
     {
         let promise = self.send(command, request).await?;
-        let response = promise.await.map_err(|err| XtbClientError::UnexpectedError)?;
+        let response = promise.await.map_err(|err| {
+            error!("Unexpected error: {:?}", err);
+            XtbClientError::UnexpectedError
+        })?;
         match response {
             ProcessedMessage::Response(response) => {
                 match response.return_data {
@@ -338,7 +338,7 @@ impl XtbClient {
                     None => Ok(None)
                 }
             }
-            ProcessedMessage::ErrorResponse(err) => todo!(),
+            ProcessedMessage::ErrorResponse(err) => Err(XtbClientError::CommandFailed(err)),
         }
     }
 
@@ -376,87 +376,87 @@ impl ApiClient for XtbClient {
     }
 
     async fn get_calendar(&mut self, request: GetCalendarRequest) -> Result<GetCalendarResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_CALENDAR, request).await
     }
 
     async fn get_chart_last_request(&mut self, request: GetChartLastRequestRequest) -> Result<GetChartLastRequestResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_CHART_LAST_REQUEST, request).await
     }
 
     async fn get_chart_range_request(&mut self, request: GetChartRangeRequestRequest) -> Result<GetChartRangeRequestResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_CHART_RANGE_REQUEST, request).await
     }
 
     async fn get_commission_def(&mut self, request: GetCommissionDefRequest) -> Result<GetCommissionDefResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_COMMISSION_DEF, request).await
     }
 
     async fn get_current_user_data(&mut self, request: GetCurrentUserDataRequest) -> Result<GetCurrentUserDataResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_CURRENT_USER_DATA, request).await
     }
 
     async fn get_ibs_history(&mut self, request: GetIbsHistoryRequest) -> Result<GetIbsHistoryResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_IBS_HISTORY, request).await
     }
 
     async fn get_margin_level(&mut self, request: GetMarginLevelRequest) -> Result<GetMarginLevelResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_MARGIN_LEVEL, request).await
     }
 
     async fn get_margin_trade(&mut self, request: GetMarginTradeRequest) -> Result<GetMarginTradeResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_MARGIN_TRADE, request).await
     }
 
     async fn get_news(&mut self, request: GetNewsRequest) -> Result<GetNewsResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_NEWS, request).await
     }
 
     async fn get_profit_calculation(&mut self, request: GetProfitCalculationRequest) -> Result<GetProfitCalculationResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_PROFIT_CALCULATION, request).await
     }
 
     async fn get_server_time(&mut self, request: GetServerTimeRequest) -> Result<GetServerTimeResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_SERVER_TIME, request).await
     }
 
     async fn get_step_rules(&mut self, request: GetStepRulesRequest) -> Result<GetStepRulesResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_STEP_RULES, request).await
     }
 
     async fn get_symbol(&mut self, request: GetSymbolRequest) -> Result<GetSymbolResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_SYMBOL, request).await
     }
 
     async fn get_tick_prices(&mut self, request: GetTickPricesRequest) -> Result<GetTickPricesResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_TICK_PRICES, request).await
     }
 
     async fn get_trade_records(&mut self, request: GetTradeRecordsRequest) -> Result<GetTradeRecordsResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_TRADE_RECORDS, request).await
     }
 
     async fn get_trades(&mut self, request: GetTradesRequest) -> Result<GetTradesResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_TRADES, request).await
     }
 
     async fn get_trades_history(&mut self, request: GetTradesHistoryRequest) -> Result<GetTradesHistoryResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_TRADES_HISTORY, request).await
     }
 
     async fn get_trading_hours(&mut self, request: GetTradingHoursRequest) -> Result<GetTradingHoursResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_TRADING_HOURS, request).await
     }
 
     async fn get_version(&mut self, request: GetVersionRequest) -> Result<GetVersionResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_GET_VERSION, request).await
     }
 
     async fn trade_transaction(&mut self, request: TradeTransactionRequest) -> Result<TradeTransactionResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_TRADE_TRANSACTION, request).await
     }
 
     async fn trade_transaction_status(&mut self, request: TradeTransactionStatusRequest) -> Result<TradeTransactionStatusResponse, Self::Error> {
-        todo!()
+        self.send_and_wait_or_default(COMMAND_TRADE_TRANSACTION_STATUS, request).await
     }
 }
 
@@ -471,6 +471,8 @@ pub enum XtbClientError {
     UnexpectedError,
     #[error("Cannot deserialize data")]
     DeserializationFailed(serde_json::Error),
+    #[error("Command failed and an error response was returned")]
+    CommandFailed(ErrorResponse),
 }
 
 
@@ -507,7 +509,7 @@ fn spawn_ping(conn: Arc<Mutex<BasicXtbConnection>>, ping_secs: u64) -> JoinHandl
             if let Some(response_promise) = response_promise {
                 match response_promise.await {
                     Ok(_) => (),
-                    Err(err) => error!("Cannot await the ping response #{}", idx)
+                    Err(err) => error!("Cannot await the ping response #{}: {:?}", idx, err)
                 }
             }
             idx += 1;
@@ -534,8 +536,8 @@ fn spawn_ping(conn: Arc<Mutex<BasicXtbConnection>>, ping_secs: u64) -> JoinHandl
 fn spawn_stream_ping(conn: Arc<Mutex<BasicXtbStreamConnection>>, ping_secs: u64) -> JoinHandle<()> {
     let ping_value = to_value(StreamPingSubscribe::default()).expect("Cannot serialize the stream ping message");
     spawn(async move {
+        let mut idx = 1u64;
         loop {
-            let mut idx = 1u64;
             {
                 debug!("Sending ping #{} to stream connection", idx);
                 let mut conn = conn.lock().await;
