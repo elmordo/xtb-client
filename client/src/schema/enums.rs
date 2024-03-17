@@ -15,6 +15,10 @@ pub enum QuoteId {
     Depth = 3,
     /// cross
     Cross = 4,
+    /// Undocumented option
+    Unknown1 = 5,
+    /// Undocumented option
+    Unknown2 = 6,
 }
 
 
@@ -29,6 +33,8 @@ pub enum MarginMode {
     CFDLeveraged = 102,
     /// CFD
     CFD = 103,
+    /// Undocumented option
+    Unknown1 = 104
 }
 
 
