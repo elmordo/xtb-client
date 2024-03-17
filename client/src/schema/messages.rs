@@ -12,9 +12,34 @@ pub struct Request {
     /// The command name
     pub command: String,
     /// Data (payload) send with a command
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Value>,
     /// Custom tag for message identification
     pub custom_tag: Option<String>,
+}
+
+
+impl Request {
+
+    /// Correctly set arguments.
+    ///
+    /// The arguments can be:
+    ///
+    /// * None - set payload to None
+    /// * Some(Value::Null) - set payload to None
+    /// * Some(Value::Object) - set payload to given value
+    ///
+    /// # Panics
+    ///
+    /// Any other payload configuration than supported one
+    pub fn with_maybe_arguments(mut self, arguments: Option<Value>) -> Self {
+        match arguments {
+            None | Some(Value::Null) => self.arguments = None,
+            Some(Value::Object(obj)) => self.arguments = Some(Value::Object(obj)),
+            _ => panic!("Unsupported argument type. RTFM")
+        }
+        self
+    }
 }
 
 

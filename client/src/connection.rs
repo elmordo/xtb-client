@@ -52,7 +52,10 @@ impl BasicXtbConnection {
     /// Create new instance from server url
     pub async fn new(url: Url) -> Result<Self, XtbConnectionError> {
         let host_clone = url.as_str().to_owned();
-        let (conn, _) = connect_async(url).await.map_err(|_| XtbConnectionError::CannotConnect(host_clone))?;
+        let (conn, _) = connect_async(url).await.map_err(|err| {
+            error!("Cannot connect to server {}: {:?}", host_clone, err);
+            XtbConnectionError::CannotConnect(host_clone)
+        })?;
 
         let (sink, stream) = conn.split();
         let lookup = Arc::new(Mutex::new(HashMap::new()));
@@ -68,12 +71,18 @@ impl BasicXtbConnection {
 
     /// Build a request from command and payload.
     /// Return request and its tag.
-    fn build_request(&mut self, command: &str, payload: Option<Value>) -> (Request, String) {
+    fn build_request(&mut self, command: &str, mut payload: Option<Value>) -> (Request, String) {
         let tag = self.tag_maker.next();
+
+        if let Some(p) = &payload {
+            if p.is_null() {
+                payload = None;
+            }
+        }
 
         let r = Request::default()
             .with_command(command)
-            .with_arguments(payload)
+            .with_maybe_arguments(payload)
             .with_custom_tag(&tag);
         (r, tag)
     }

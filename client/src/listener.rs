@@ -5,7 +5,7 @@ use tokio::net::TcpStream;
 use tokio::spawn;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use tracing::{error};
+use tracing::{debug, error};
 use crate::schema::StreamDataMessage;
 use crate::message_processing;
 use crate::message_processing::ProcessedMessage;
@@ -37,6 +37,7 @@ pub fn listen_for_responses(mut stream: SplitStream<Stream>, response_handler: i
                     continue;
                 }
             };
+            debug!("{:?}", message);
             // process message
             let response = match message_processing::process_message(message) {
                 Ok(response) => response,
