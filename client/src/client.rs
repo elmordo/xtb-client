@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,7 +15,7 @@ use tokio::time::sleep;
 use tracing::{debug, error};
 use url::Url;
 
-use crate::{BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
+use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
 use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
@@ -243,7 +244,7 @@ pub trait StreamApiClient {
     /// Error returned from the client when something went wrong
     type Error;
 
-    type Stream<T>;
+    type Stream<T: Send + Sync + for<'de> Deserialize<'de>>;
 
     /// Each streaming command takes as an argument streamSessionId which is sent in response
     /// message for login command performed in main connection. streamSessionId token allows to
@@ -458,6 +459,55 @@ impl ApiClient for XtbClient {
     async fn trade_transaction_status(&mut self, request: TradeTransactionStatusRequest) -> Result<TradeTransactionStatusResponse, Self::Error> {
         self.send_and_wait_or_default(COMMAND_TRADE_TRANSACTION_STATUS, request).await
     }
+}
+
+
+#[async_trait]
+impl StreamApiClient for XtbClient {
+    type Error = XtbClientError;
+
+    type Stream<T: Send + Sync + for<'de> Deserialize<'de>> = DataStream<T>;
+
+    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Self::Stream<StreamGetBalanceData> {
+        todo!()
+    }
+
+    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Self::Stream<StreamGetCandlesData> {
+        todo!()
+    }
+
+    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Self::Stream<StreamGetKeepAliveData> {
+        todo!()
+    }
+
+    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Self::Stream<StreamGetNewsData> {
+        todo!()
+    }
+
+    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Self::Stream<StreamGetProfitData> {
+        todo!()
+    }
+
+    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Self::Stream<StreamGetTickPricesData> {
+        todo!()
+    }
+
+    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Self::Stream<StreamGetTradesData> {
+        todo!()
+    }
+
+    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Self::Stream<StreamGetTradeStatusData> {
+        todo!()
+    }
+}
+
+
+pub struct DataStream<T>
+    where
+        T: for<'de> Deserialize<'de> + Send + Sync
+{
+    message_stream: BasicMessageStream,
+    type_: PhantomData<T>
 }
 
 
