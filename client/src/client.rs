@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -5,8 +6,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_setters::Setters;
+use futures_util::TryFutureExt;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_value, to_value};
+use serde_json::{from_value, to_value, Value};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::Mutex;
@@ -15,9 +17,9 @@ use tokio::time::sleep;
 use tracing::{debug, error};
 use url::Url;
 
-use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, MessageStream, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
+use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, DataMessageFilter, MessageStream, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_PING, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_GET_KEEP_ALIVE, STREAM_PING, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -252,44 +254,44 @@ pub trait StreamApiClient {
     /// different streamSessionId can be invoked. It will cause sending streaming data for multiple
     /// login sessions in one streaming connection. streamSessionId is valid until logout command is
     /// performed on main connection or main connection is disconnected.
-    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Self::Stream<StreamGetBalanceData>;
+    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from API chart candles. The interval of every candle
     /// is 1 minute. A new candle arrives every minute.
-    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Self::Stream<StreamGetCandlesData>;
+    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from 'keep alive' messages. A new 'keep alive' message
     /// is sent by the API every 3 seconds.
-    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Self::Stream<StreamGetKeepAliveData>;
+    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from news.
-    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Self::Stream<StreamGetNewsData>;
+    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from profits.
-    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Self::Stream<StreamGetProfitData>;
+    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error>;
 
     /// Establishes subscription for quotations and allows to obtain the relevant information
     /// in real-time, as soon as it is available in the system. The getTickPrices command can
     /// be invoked many times for the same symbol, but only one subscription for a given symbol
     /// will be created. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Self::Stream<StreamGetTickPricesData>;
+    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error>;
 
     /// Establishes subscription for user trade status data and allows to obtain the relevant
     /// information in real-time, as soon as it is available in the system. Please beware that when
     /// multiple records are available, the order in which they are received is not guaranteed.
-    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Self::Stream<StreamGetTradesData>;
+    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error>;
 
     /// Allows to get status for sent trade requests in real-time, as soon as it is available
     /// in the system. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Self::Stream<StreamGetTradeStatusData>;
+    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error>;
 }
 
 
 pub struct XtbClient {
     connection: Arc<Mutex<BasicXtbConnection>>,
-    stream_connection: Arc<Mutex<BasicXtbStreamConnection>>,
+    stream_manager: StreamManager,
     ping_join_handle: JoinHandle<()>,
     stream_ping_join_handle: JoinHandle<()>,
 }
@@ -302,14 +304,15 @@ impl XtbClient {
 
     pub fn new(connection: BasicXtbConnection, stream_connection: BasicXtbStreamConnection, ping_period: u64) -> Self {
         let connection = Arc::new(Mutex::new(connection));
-        let stream_connection = Arc::new(Mutex::new(stream_connection));
 
         let ping_join_handle = spawn_ping(connection.clone(), ping_period);
-        let stream_ping_join_handle = spawn_stream_ping(stream_connection.clone(), ping_period);
+
+        let stream_manager = StreamManager::new(stream_connection);
+        let stream_ping_join_handle = spawn_stream_ping(stream_manager.clone(), ping_period);
 
         Self {
             connection,
-            stream_connection,
+            stream_manager,
             ping_join_handle,
             stream_ping_join_handle,
         }
@@ -348,7 +351,7 @@ impl XtbClient {
             A: Serialize
     {
         let mut conn = self.connection.lock().await;
-        let payload = to_value(request).map_err(|err| XtbClientError::SerializationFailed(err))?;
+        let payload = Self::convert_data_to_value(request)?;
         conn.send_command(command, Some(payload)).await.map_err(|err| {
             match err {
                 XtbConnectionError::SerializationError(err) => XtbClientError::SerializationFailed(err),
@@ -356,6 +359,10 @@ impl XtbClient {
                 _ => XtbClientError::UnexpectedError,
             }
         })
+    }
+
+    fn convert_data_to_value<T: Serialize>(data: T) -> Result<Value, XtbClientError> {
+        to_value(data).map_err(|err| XtbClientError::SerializationFailed(err))
     }
 }
 
@@ -468,35 +475,39 @@ impl StreamApiClient for XtbClient {
 
     type Stream<T: Send + Sync + for<'de> Deserialize<'de>> = DataStream<T>;
 
-    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Self::Stream<StreamGetBalanceData> {
+    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error> {
         todo!()
     }
 
-    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Self::Stream<StreamGetCandlesData> {
+    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error> {
         todo!()
     }
 
-    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Self::Stream<StreamGetKeepAliveData> {
+    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
+        let arguments = Self::convert_data_to_value(arguments)?;
+        let filter = DataMessageFilter::Command(STREAM_GET_KEEP_ALIVE.to_owned());
+        self.stream_manager.subscribe(STREAM_GET_KEEP_ALIVE, STREAM_GET_KEEP_ALIVE, Some(arguments)).await?;
+
         todo!()
     }
 
-    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Self::Stream<StreamGetNewsData> {
+    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
         todo!()
     }
 
-    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Self::Stream<StreamGetProfitData> {
+    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error> {
         todo!()
     }
 
-    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Self::Stream<StreamGetTickPricesData> {
+    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error> {
         todo!()
     }
 
-    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Self::Stream<StreamGetTradesData> {
+    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error> {
         todo!()
     }
 
-    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Self::Stream<StreamGetTradeStatusData> {
+    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error> {
         todo!()
     }
 }
@@ -508,6 +519,8 @@ pub enum XtbClientError {
     SerializationFailed(serde_json::Error),
     #[error("Cannot send command to server")]
     CannotSendCommand(tokio_tungstenite::tungstenite::Error),
+    #[error("Cannot send stream command")]
+    CannotSendStreamCommand(XtbStreamConnectionError),
     #[error("Unexpected error.")]
     UnexpectedError,
     #[error("Cannot deserialize data")]
@@ -517,11 +530,72 @@ pub enum XtbClientError {
 }
 
 
+/// Shared inner state of the `StreamManager`
+#[derive(Debug)]
+struct StreamManagerState {
+    /// The stream connection
+    connection: BasicXtbStreamConnection,
+    /// subscription counter
+    subscriptions: HashMap<String, usize>,
+}
+
+
+impl StreamManagerState {
+    pub fn new(connection: BasicXtbStreamConnection) -> Self {
+        Self {
+            connection,
+            subscriptions: HashMap::new(),
+        }
+    }
+}
+
+
+/// Manage stream subscriptions across application. All instances cloned from same origin share
+/// its internal state.
+#[derive(Clone, Debug)]
+struct StreamManager {
+    /// The inner state shared between instances of the `StreamManager`
+    state: Arc<Mutex<StreamManagerState>>,
+}
+
+
+impl StreamManager {
+    /// Create new instance of the `StreamManager` struct.
+    pub fn new(connection: BasicXtbStreamConnection) -> Self {
+        let state = Arc::new(Mutex::new(StreamManagerState::new(connection)));
+        Self {
+            state
+        }
+    }
+
+    pub async fn make_message_stream<T: for<'de> Deserialize<'de> + Send + Sync>(&mut self, filter: DataMessageFilter) -> DataStream<T> {
+        let mut state = self.state.lock().await;
+        let stream = state.connection.make_message_stream(filter).await;
+        DataStream::new(stream)
+    }
+
+    pub async fn subscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
+        let mut state = self.state.lock().await;
+        state.connection.subscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
+        *state.subscriptions.entry(subscription_key.to_owned()).or_default() += 1;
+        Ok(())
+    }
+
+    pub async fn unsubscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
+        let mut state = self.state.lock().await;
+        state.connection.unsubscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
+        *state.subscriptions.entry(subscription_key.to_owned()).or_default() -= 1;
+        Ok(())
+    }
+}
+
+
 pub struct DataStream<T>
     where
         T: for<'de> Deserialize<'de> + Send + Sync
 {
     message_stream: BasicMessageStream,
+    stream_manager: StreamManager,
     type_: PhantomData<T>,
 }
 
@@ -529,6 +603,14 @@ impl<T> DataStream<T>
     where
         T: for<'de> Deserialize<'de> + Send + Sync
 {
+    pub fn new(message_stream: BasicMessageStream, stream_manager: StreamManager) -> Self {
+        Self {
+            message_stream,
+            stream_manager,
+            type_: PhantomData::<T>,
+        }
+    }
+
     pub async fn next(&mut self) -> Result<Option<T>, DataStreamError> {
         let message = self.message_stream.next().await;
         match message {
@@ -537,19 +619,22 @@ impl<T> DataStream<T>
         }
     }
 
-    pub async fn unsubscribe(mut self) {
-
-    }
-
     fn process_message(msg: StreamDataMessage) -> Result<Option<T>, DataStreamError> {
         todo!()
     }
 }
 
-#[derive(Debug, Error)]
-pub enum DataStreamError {
+impl<T> Drop for DataStream<T>
+    where
+        T: for<'de> Deserialize<'de> + Send + Sync
+{
+    fn drop(&mut self) {
+        todo!()
+    }
 }
 
+#[derive(Debug, Error)]
+pub enum DataStreamError {}
 
 
 /// Spawn tokio green thread and to send ping periodically to sync connection
@@ -609,15 +694,15 @@ fn spawn_ping(conn: Arc<Mutex<BasicXtbConnection>>, ping_secs: u64) -> JoinHandl
 /// # Returns
 ///
 /// `JoinHandle` of the green thread
-fn spawn_stream_ping(conn: Arc<Mutex<BasicXtbStreamConnection>>, ping_secs: u64) -> JoinHandle<()> {
+fn spawn_stream_ping(stream_manager: StreamManager, ping_secs: u64) -> JoinHandle<()> {
     let ping_value = to_value(StreamPingSubscribe::default()).expect("Cannot serialize the stream ping message");
     spawn(async move {
         let mut idx = 1u64;
         loop {
             {
                 debug!("Sending ping #{} to stream connection", idx);
-                let mut conn = conn.lock().await;
-                match conn.subscribe(STREAM_PING, Some(ping_value.clone())).await {
+                let mut inner_state = stream_manager.state.lock().await;
+                match inner_state.connection.subscribe(STREAM_PING, Some(ping_value.clone())).await {
                     Ok(_) => (),
                     Err(err) => error!("Cannot send ping #{}: {:?}", idx, err)
                 }

@@ -35,6 +35,7 @@ pub trait XtbStreamConnection {
 }
 
 
+#[derive(Debug)]
 pub struct BasicXtbStreamConnection {
     /// Stream session id used to identify for the stream server
     stream_session_id: String,
