@@ -1,20 +1,36 @@
 
 pub const STREAM_GET_BALANCE: &'static str = "getBalance";
+pub const STREAM_BALANCE: &'static str = "balance";
 pub const STREAM_STOP_BALANCE: &'static str = "stopBalance";
+
 pub const STREAM_GET_CANDLES: &'static str = "getCandles";
+pub const STREAM_CANDLES: &'static str = "candle";
 pub const STREAM_STOP_CANDLES: &'static str = "stopCandles";
+
 pub const STREAM_GET_KEEP_ALIVE: &'static str = "getKeepAlive";
+pub const STREAM_KEEP_ALIVE: &'static str = "keepAlive";
 pub const STREAM_STOP_KEEP_ALIVE: &'static str = "stopKeepAlive";
+
 pub const STREAM_GET_NEWS: &'static str = "getNews";
+pub const STREAM_NEWS: &'static str = "news";
 pub const STREAM_STOP_NEWS: &'static str = "stopNews";
+
 pub const STREAM_GET_PROFITS: &'static str = "getProfits";
+pub const STREAM_PROFITS: &'static str = "profit";
 pub const STREAM_STOP_PROFITS: &'static str = "stopProfits";
+
 pub const STREAM_GET_TICK_PRICES: &'static str = "getTickPrices";
+pub const STREAM_TICK_PRICES: &'static str = "tickPrices";
 pub const STREAM_STOP_TICK_PRICES: &'static str = "stopTickPrices";
-pub const STREAM_GET_TRADES: &'static str = "getTickTrades";
-pub const STREAM_STOP_TRADES: &'static str = "stopTickTrades";
+
+pub const STREAM_GET_TRADES: &'static str = "getTrades";
+pub const STREAM_TRADES: &'static str = "trade";
+pub const STREAM_STOP_TRADES: &'static str = "stopTrades";
+
 pub const STREAM_GET_TRADE_STATUS: &'static str = "getTradeStatus";
+pub const STREAM_TRADE_STATUS: &'static str = "tradeStatus";
 pub const STREAM_STOP_TRADE_STATUS: &'static str = "stopTradeStatus";
+
 pub const STREAM_PING: &'static str = "ping";
 
 
