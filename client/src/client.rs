@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_setters::Setters;
-use futures_util::TryFutureExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value, Value};
 use thiserror::Error;
@@ -19,7 +18,7 @@ use url::Url;
 
 use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, DataMessageFilter, MessageStream, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_GET_KEEP_ALIVE, STREAM_PING, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_GET_KEEP_ALIVE, STREAM_PING, STREAM_STOP_KEEP_ALIVE, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -485,10 +484,16 @@ impl StreamApiClient for XtbClient {
 
     async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
         let arguments = Self::convert_data_to_value(arguments)?;
+        let stop_arguments = Self::convert_data_to_value(StreamGetKeepAliveUnsubscribe::default())?;
         let filter = DataMessageFilter::Command(STREAM_GET_KEEP_ALIVE.to_owned());
-        self.stream_manager.subscribe(STREAM_GET_KEEP_ALIVE, STREAM_GET_KEEP_ALIVE, Some(arguments)).await?;
-
-        todo!()
+        self.stream_manager.subscribe(
+            STREAM_GET_KEEP_ALIVE,
+            Some(arguments),
+            STREAM_STOP_KEEP_ALIVE,
+            Some(stop_arguments),
+            STREAM_GET_KEEP_ALIVE,
+            filter
+        ).await
     }
 
     async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
@@ -568,17 +573,20 @@ impl StreamManager {
         }
     }
 
-    pub async fn make_message_stream<T: for<'de> Deserialize<'de> + Send + Sync>(&mut self, filter: DataMessageFilter) -> DataStream<T> {
+    pub async fn subscribe<T: for<'de> Deserialize<'de> + Send + Sync>(
+        &mut self,
+        subscribe_command: &str,
+        subscribe_arguments: Option<Value>,
+        unsubscribe_command: &str,
+        unsubscribe_arguments: Option<Value>,
+        subscription_key: &str,
+        filter: DataMessageFilter
+    ) -> Result<DataStream<T>, XtbClientError> {
         let mut state = self.state.lock().await;
         let stream = state.connection.make_message_stream(filter).await;
-        DataStream::new(stream)
-    }
-
-    pub async fn subscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
-        let mut state = self.state.lock().await;
-        state.connection.subscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
+        state.connection.subscribe(subscribe_command, subscribe_arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
         *state.subscriptions.entry(subscription_key.to_owned()).or_default() += 1;
-        Ok(())
+        Ok(DataStream::new(stream, self.clone(), subscription_key.to_owned(), unsubscribe_command.to_owned(), unsubscribe_arguments))
     }
 
     pub async fn unsubscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
@@ -596,6 +604,9 @@ pub struct DataStream<T>
 {
     message_stream: BasicMessageStream,
     stream_manager: StreamManager,
+    subscription_key: String,
+    unsubscribe_command: String,
+    unsubscribe_arguments: Option<Value>,
     type_: PhantomData<T>,
 }
 
@@ -603,10 +614,13 @@ impl<T> DataStream<T>
     where
         T: for<'de> Deserialize<'de> + Send + Sync
 {
-    pub fn new(message_stream: BasicMessageStream, stream_manager: StreamManager) -> Self {
+    fn new(message_stream: BasicMessageStream, stream_manager: StreamManager, subscription_key: String, unsubscribe_command: String, unsubscribe_arguments: Option<Value>) -> Self {
         Self {
             message_stream,
             stream_manager,
+            subscription_key,
+            unsubscribe_command,
+            unsubscribe_arguments,
             type_: PhantomData::<T>,
         }
     }
@@ -614,13 +628,13 @@ impl<T> DataStream<T>
     pub async fn next(&mut self) -> Result<Option<T>, DataStreamError> {
         let message = self.message_stream.next().await;
         match message {
-            Some(msg) => Self::process_message(msg),
+            Some(msg) => Self::process_message(msg).map(|r| Some(r)),
             None => Ok(None),
         }
     }
 
-    fn process_message(msg: StreamDataMessage) -> Result<Option<T>, DataStreamError> {
-        todo!()
+    fn process_message(msg: StreamDataMessage) -> Result<T, DataStreamError> {
+        from_value(msg.data).map_err(|err| DataStreamError::CannotDeserializeValue(err))
     }
 }
 
@@ -629,12 +643,25 @@ impl<T> Drop for DataStream<T>
         T: for<'de> Deserialize<'de> + Send + Sync
 {
     fn drop(&mut self) {
-        todo!()
+        let mut manager = self.stream_manager.clone();
+        let unsubscribe_command = self.unsubscribe_command.clone();
+        let unsubscribe_arguments = self.unsubscribe_arguments.take();
+        let subscription_key = self.subscription_key.clone();
+        tokio::spawn(async move {
+            let result = manager.unsubscribe(&subscription_key, &unsubscribe_command, unsubscribe_arguments.clone()).await;
+            match result {
+                Err(err) => error!("Cannot unsubscribe command '{unsubscribe_command}' ({unsubscribe_arguments:?}). The subscription key was: '{subscription_key}'. The error was: {err:?}"),
+                _ => (),
+            };
+        });
     }
 }
 
 #[derive(Debug, Error)]
-pub enum DataStreamError {}
+pub enum DataStreamError {
+    #[error("Cannot deserialize value: {0}")]
+    CannotDeserializeValue(serde_json::Error)
+}
 
 
 /// Spawn tokio green thread and to send ping periodically to sync connection
