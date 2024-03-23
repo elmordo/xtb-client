@@ -8,7 +8,7 @@ use tokio::sync::broadcast::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::error;
+use tracing::{debug, error, info};
 use url::Url;
 use crate::schema::{StreamDataMessage, SubscribeRequest, UnsubscribeRequest};
 
@@ -110,11 +110,15 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
         let request = SubscribeRequest::default()
             .with_command(command)
             .with_stream_session_id(&self.stream_session_id);
+        info!("Subscribing for {command}");
+        debug!("Subscription arguments are {arguments:?}");
         self.assemble_and_send(request, arguments).await
     }
 
     async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
         let request = UnsubscribeRequest::default().with_command(command);
+        info!("Unsubscribing from {command}");
+        debug!("Unsubscription arguments are {arguments:?}");
         self.assemble_and_send(request, arguments).await
     }
 
@@ -142,9 +146,12 @@ impl MessageHandler {
 #[async_trait]
 impl StreamDataMessageHandler for MessageHandler {
     async fn handle_message(&self, message: StreamDataMessage) {
+        let cmd = message.command.to_owned();
+        info!("Handling incoming message {cmd}");
+        debug!("Incoming message: {message:?}");
         match self.sender.send(message) {
             Err(err) => error!("Cannot broadcast message: {}", err),
-            _ => ()
+            _ => debug!("Message {cmd} was broadcast to the {} receivers", self.sender.len())
         }
     }
 }
