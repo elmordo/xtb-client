@@ -1,6 +1,6 @@
 use tracing::Level;
-use xtb_client::ApiClient;
-use xtb_client::schema::GetAllSymbolsRequest;
+use xtb_client::{StreamApiClient};
+use xtb_client::schema::{StreamGetKeepAliveSubscribe};
 
 #[tokio::main]
 async fn main() {
@@ -15,6 +15,11 @@ async fn main() {
 
     let mut client = xtb_client::XtbClientBuilder::new(&api_server, &stream_server).build(&username, &password).await.unwrap();
 
-    let symbols = client.get_all_symbols(GetAllSymbolsRequest::default()).await.unwrap();
-    println!("{}", serde_json::to_string_pretty(&symbols).unwrap())
+    let mut listener = client.get_keep_alive(StreamGetKeepAliveSubscribe::default()).await.unwrap();
+
+    while let Some(item) = listener.next().await.unwrap() {
+        println!("Keep alive received: {}", item.timestamp);
+    }
+
+    println!("Stream closed");
 }
