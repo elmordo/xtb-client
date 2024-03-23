@@ -31,6 +31,9 @@ pub struct XtbClientBuilder {
 }
 
 
+const DEFAULT_PING_INTERVAL_S: u64 = 30;
+
+
 impl XtbClientBuilder {
     pub fn new(api_url: &str, stream_api_url: &str) -> Self {
         XtbClientBuilder {
@@ -71,7 +74,7 @@ impl XtbClientBuilder {
 
         let stream_connection = BasicXtbStreamConnection::new(stream_api_url, stream_session_id).await.map_err(|err| XtbClientBuilderError::CannotMakeStreamConnection(err))?;
 
-        Ok(XtbClient::new(connection, stream_connection, self.ping_period.unwrap_or(120)))
+        Ok(XtbClient::new(connection, stream_connection, self.ping_period.unwrap_or(DEFAULT_PING_INTERVAL_S)))
     }
 
     fn make_url(source: Option<String>) -> Result<Url, XtbClientBuilderError> {
