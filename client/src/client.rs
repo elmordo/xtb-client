@@ -18,7 +18,7 @@ use url::Url;
 
 use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, DataMessageFilter, MessageStream, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
-use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_GET_KEEP_ALIVE, STREAM_KEEP_ALIVE, STREAM_PING, STREAM_STOP_KEEP_ALIVE, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
+use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_BALANCE, STREAM_CANDLES, STREAM_GET_BALANCE, STREAM_GET_CANDLES, STREAM_GET_KEEP_ALIVE, STREAM_GET_NEWS, STREAM_GET_PROFITS, STREAM_GET_TICK_PRICES, STREAM_GET_TRADE_STATUS, STREAM_GET_TRADES, STREAM_KEEP_ALIVE, STREAM_NEWS, STREAM_PING, STREAM_PROFITS, STREAM_STOP_BALANCE, STREAM_STOP_CANDLES, STREAM_STOP_KEEP_ALIVE, STREAM_STOP_NEWS, STREAM_STOP_PROFITS, STREAM_STOP_TICK_PRICES, STREAM_STOP_TRADE_STATUS, STREAM_STOP_TRADES, STREAM_TICK_PRICES, STREAM_TRADE_STATUS, STREAM_TRADES, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
@@ -478,45 +478,67 @@ impl StreamApiClient for XtbClient {
     type Stream<T: Send + Sync + for<'de> Deserialize<'de>> = DataStream<T>;
 
     async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetBalanceUnsubscribe::default())?;
+        let filter = DataMessageFilter::Command(STREAM_BALANCE.to_owned());
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_BALANCE, Some(arguments), STREAM_STOP_BALANCE, Some(stop_arguments), STREAM_BALANCE, filter).await
     }
 
     async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetCandlesUnsubscribe::default().with_symbol(&arguments.symbol))?;
+        let subscription_key = format!("{}.{}", STREAM_GET_CANDLES, arguments.symbol);
+        let filter = DataMessageFilter::All(vec![
+            DataMessageFilter::Command(STREAM_CANDLES.to_owned()),
+            DataMessageFilter::FieldValue {name: "symbol".to_owned(), value: Value::String(arguments.symbol.to_owned())}
+        ]);
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_CANDLES, Some(arguments), STREAM_STOP_CANDLES, Some(stop_arguments), &subscription_key, filter).await
     }
 
     async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
-        let arguments = Self::convert_data_to_value(arguments)?;
         let stop_arguments = Self::convert_data_to_value(StreamGetKeepAliveUnsubscribe::default())?;
+        let arguments = Self::convert_data_to_value(arguments)?;
         let filter = DataMessageFilter::Command(STREAM_KEEP_ALIVE.to_owned());
-        self.stream_manager.subscribe(
-            STREAM_GET_KEEP_ALIVE,
-            Some(arguments),
-            STREAM_STOP_KEEP_ALIVE,
-            Some(stop_arguments),
-            STREAM_GET_KEEP_ALIVE,
-            filter
-        ).await
+        self.stream_manager.subscribe(STREAM_GET_KEEP_ALIVE, Some(arguments), STREAM_STOP_KEEP_ALIVE, Some(stop_arguments), STREAM_GET_KEEP_ALIVE, filter).await
     }
 
     async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetNewsUnsubscribe::default())?;
+        let filter = DataMessageFilter::Command(STREAM_NEWS.to_owned());
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_NEWS, Some(arguments), STREAM_STOP_NEWS, Some(stop_arguments), STREAM_NEWS, filter).await
     }
 
     async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetProfitUnsubscribe::default())?;
+        let filter = DataMessageFilter::Command(STREAM_PROFITS.to_owned());
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_PROFITS, Some(arguments), STREAM_STOP_PROFITS, Some(stop_arguments), STREAM_PROFITS, filter).await
     }
 
     async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetTickPricesUnsubscribe::default().with_symbol(&arguments.symbol))?;
+        let subscription_key = format!("{}.{}", STREAM_TICK_PRICES, arguments.symbol);
+        let filter = DataMessageFilter::All(vec![
+            DataMessageFilter::Command(STREAM_TICK_PRICES.to_owned()),
+            DataMessageFilter::FieldValue {name: "symbol".to_owned(), value: Value::String(arguments.symbol.to_owned())}
+        ]);
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_TICK_PRICES, Some(arguments), STREAM_STOP_TICK_PRICES, Some(stop_arguments), &subscription_key, filter).await
     }
 
     async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetTradesUnsubscribe::default())?;
+        let filter = DataMessageFilter::Command(STREAM_TRADES.to_owned());
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_TRADES, Some(arguments), STREAM_STOP_TRADES, Some(stop_arguments), STREAM_TRADES, filter).await
     }
 
     async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error> {
-        todo!()
+        let stop_arguments = Self::convert_data_to_value(StreamGetTradeStatusUnsubscribe::default())?;
+        let filter = DataMessageFilter::Command(STREAM_TRADE_STATUS.to_owned());
+        let arguments = Self::convert_data_to_value(arguments)?;
+        self.stream_manager.subscribe(STREAM_GET_TRADE_STATUS, Some(arguments), STREAM_STOP_TRADE_STATUS, Some(stop_arguments), STREAM_TRADE_STATUS, filter).await
     }
 }
 
