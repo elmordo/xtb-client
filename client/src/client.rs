@@ -366,6 +366,50 @@ impl XtbClient {
     fn convert_data_to_value<T: Serialize>(data: T) -> Result<Value, XtbClientError> {
         to_value(data).map_err(|err| XtbClientError::SerializationFailed(err))
     }
+
+    async fn send_simple_stream_command<T, SA, UA>(
+        &mut self,
+        subscribe_command: &str,
+        subscribe_arguments: SA,
+        unsubscribe_command: &str,
+        unsubscribe_arguments: UA,
+        data_command: &str,
+    ) -> Result<DataStream<T>, XtbClientError>
+        where
+            T: for<'de> Deserialize<'de> + Send + Sync,
+            SA: Serialize,
+            UA: Serialize,
+    {
+        let unsubscribe_arguments = Self::convert_data_to_value(unsubscribe_arguments)?;
+        let filter = DataMessageFilter::Command(data_command.to_owned());
+        let subscribe_arguments = Self::convert_data_to_value(subscribe_arguments)?;
+        self.stream_manager.subscribe(subscribe_command, Some(subscribe_arguments), unsubscribe_command, Some(unsubscribe_arguments), data_command, filter).await
+    }
+
+    async fn send_symbol_scoped_stream_command<T, SA, UA>(
+        &mut self,
+        subscribe_command: &str,
+        subscribe_arguments: SA,
+        unsubscribe_command: &str,
+        unsubscribe_arguments: UA,
+        data_command: &str,
+        symbol: &str,
+    ) -> Result<DataStream<T>, XtbClientError>
+        where
+            T: for<'de> Deserialize<'de> + Send + Sync,
+            SA: Serialize,
+            UA: Serialize,
+    {
+        let unsubscribe_arguments = Self::convert_data_to_value(unsubscribe_arguments)?;
+        let subscribe_arguments = Self::convert_data_to_value(subscribe_arguments)?;
+        let subscription_key = format!("{}.{}", data_command, symbol);
+
+        let filter = DataMessageFilter::All(vec![
+            DataMessageFilter::Command(data_command.to_owned()),
+            DataMessageFilter::FieldValue { name: "symbol".to_owned(), value: Value::String(symbol.to_owned()) },
+        ]);
+        self.stream_manager.subscribe(subscribe_command, Some(subscribe_arguments), unsubscribe_command, Some(unsubscribe_arguments), &subscription_key, filter).await
+    }
 }
 
 
@@ -479,66 +523,44 @@ impl StreamApiClient for XtbClient {
 
     async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetBalanceUnsubscribe::default())?;
-        let filter = DataMessageFilter::Command(STREAM_BALANCE.to_owned());
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_BALANCE, Some(arguments), STREAM_STOP_BALANCE, Some(stop_arguments), STREAM_BALANCE, filter).await
+        self.send_simple_stream_command(STREAM_GET_BALANCE, arguments, STREAM_STOP_BALANCE, stop_arguments, STREAM_BALANCE).await
     }
 
     async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetCandlesUnsubscribe::default().with_symbol(&arguments.symbol))?;
-        let subscription_key = format!("{}.{}", STREAM_GET_CANDLES, arguments.symbol);
-        let filter = DataMessageFilter::All(vec![
-            DataMessageFilter::Command(STREAM_CANDLES.to_owned()),
-            DataMessageFilter::FieldValue {name: "symbol".to_owned(), value: Value::String(arguments.symbol.to_owned())}
-        ]);
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_CANDLES, Some(arguments), STREAM_STOP_CANDLES, Some(stop_arguments), &subscription_key, filter).await
+        let symbol = arguments.symbol.clone();
+        self.send_symbol_scoped_stream_command(STREAM_GET_CANDLES, arguments, STREAM_STOP_CANDLES, stop_arguments, STREAM_CANDLES, &symbol).await
     }
 
     async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetKeepAliveUnsubscribe::default())?;
-        let arguments = Self::convert_data_to_value(arguments)?;
-        let filter = DataMessageFilter::Command(STREAM_KEEP_ALIVE.to_owned());
-        self.stream_manager.subscribe(STREAM_GET_KEEP_ALIVE, Some(arguments), STREAM_STOP_KEEP_ALIVE, Some(stop_arguments), STREAM_GET_KEEP_ALIVE, filter).await
+        self.send_simple_stream_command(STREAM_GET_KEEP_ALIVE, arguments, STREAM_STOP_KEEP_ALIVE, stop_arguments, STREAM_KEEP_ALIVE).await
     }
 
     async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetNewsUnsubscribe::default())?;
-        let filter = DataMessageFilter::Command(STREAM_NEWS.to_owned());
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_NEWS, Some(arguments), STREAM_STOP_NEWS, Some(stop_arguments), STREAM_NEWS, filter).await
+        self.send_simple_stream_command(STREAM_GET_NEWS, arguments, STREAM_STOP_NEWS, stop_arguments, STREAM_NEWS).await
     }
 
     async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetProfitUnsubscribe::default())?;
-        let filter = DataMessageFilter::Command(STREAM_PROFITS.to_owned());
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_PROFITS, Some(arguments), STREAM_STOP_PROFITS, Some(stop_arguments), STREAM_PROFITS, filter).await
+        self.send_simple_stream_command(STREAM_GET_PROFITS, arguments, STREAM_STOP_PROFITS, stop_arguments, STREAM_PROFITS).await
     }
 
     async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTickPricesUnsubscribe::default().with_symbol(&arguments.symbol))?;
-        let subscription_key = format!("{}.{}", STREAM_TICK_PRICES, arguments.symbol);
-        let filter = DataMessageFilter::All(vec![
-            DataMessageFilter::Command(STREAM_TICK_PRICES.to_owned()),
-            DataMessageFilter::FieldValue {name: "symbol".to_owned(), value: Value::String(arguments.symbol.to_owned())}
-        ]);
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_TICK_PRICES, Some(arguments), STREAM_STOP_TICK_PRICES, Some(stop_arguments), &subscription_key, filter).await
+        let symbol = arguments.symbol.clone();
+        self.send_symbol_scoped_stream_command(STREAM_GET_TICK_PRICES, arguments, STREAM_STOP_TICK_PRICES, stop_arguments, STREAM_TICK_PRICES, &symbol).await
     }
 
     async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTradesUnsubscribe::default())?;
-        let filter = DataMessageFilter::Command(STREAM_TRADES.to_owned());
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_TRADES, Some(arguments), STREAM_STOP_TRADES, Some(stop_arguments), STREAM_TRADES, filter).await
+        self.send_simple_stream_command(STREAM_GET_TRADES, arguments, STREAM_STOP_TRADES, stop_arguments, STREAM_TRADES).await
     }
 
     async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTradeStatusUnsubscribe::default())?;
-        let filter = DataMessageFilter::Command(STREAM_TRADE_STATUS.to_owned());
-        let arguments = Self::convert_data_to_value(arguments)?;
-        self.stream_manager.subscribe(STREAM_GET_TRADE_STATUS, Some(arguments), STREAM_STOP_TRADE_STATUS, Some(stop_arguments), STREAM_TRADE_STATUS, filter).await
+        self.send_simple_stream_command(STREAM_GET_TRADE_STATUS, arguments, STREAM_STOP_TRADE_STATUS, stop_arguments, STREAM_TRADE_STATUS).await
     }
 }
 
@@ -605,7 +627,7 @@ impl StreamManager {
         unsubscribe_command: &str,
         unsubscribe_arguments: Option<Value>,
         subscription_key: &str,
-        filter: DataMessageFilter
+        filter: DataMessageFilter,
     ) -> Result<DataStream<T>, XtbClientError> {
         let mut state = self.state.lock().await;
         let stream = state.connection.make_message_stream(filter).await;
