@@ -102,7 +102,7 @@ pub enum XtbClientBuilderError {
 
 
 #[async_trait]
-pub trait ApiClient {
+pub trait CommandApi {
     /// Error returned from methods when command failed
     type Error;
 
@@ -244,7 +244,7 @@ pub trait ApiClient {
 
 
 #[async_trait]
-pub trait StreamApiClient {
+pub trait StreamApi {
     /// Error returned from the client when something went wrong
     type Error;
 
@@ -422,7 +422,7 @@ impl Drop for XtbClient {
 
 
 #[async_trait]
-impl ApiClient for XtbClient {
+impl CommandApi for XtbClient {
     type Error = XtbClientError;
 
     async fn get_all_symbols(&mut self, request: GetAllSymbolsRequest) -> Result<GetAllSymbolsResponse, Self::Error> {
@@ -516,7 +516,7 @@ impl ApiClient for XtbClient {
 
 
 #[async_trait]
-impl StreamApiClient for XtbClient {
+impl StreamApi for XtbClient {
     type Error = XtbClientError;
 
     type Stream<T: Send + Sync + for<'de> Deserialize<'de>> = DataStream<T>;

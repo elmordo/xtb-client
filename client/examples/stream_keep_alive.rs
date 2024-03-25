@@ -1,5 +1,5 @@
 use tracing::Level;
-use xtb_client::{StreamApiClient};
+use xtb_client::{StreamApi};
 use xtb_client::schema::{StreamGetKeepAliveSubscribe};
 
 #[tokio::main]
