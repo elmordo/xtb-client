@@ -256,38 +256,38 @@ pub trait StreamApiClient {
     /// different streamSessionId can be invoked. It will cause sending streaming data for multiple
     /// login sessions in one streaming connection. streamSessionId is valid until logout command is
     /// performed on main connection or main connection is disconnected.
-    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error>;
+    async fn subscribe_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from API chart candles. The interval of every candle
     /// is 1 minute. A new candle arrives every minute.
-    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error>;
+    async fn subscribe_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from 'keep alive' messages. A new 'keep alive' message
     /// is sent by the API every 3 seconds.
-    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error>;
+    async fn subscribe_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from news.
-    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error>;
+    async fn subscribe_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error>;
 
     /// Subscribes for and unsubscribes from profits.
-    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error>;
+    async fn subscribe_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error>;
 
     /// Establishes subscription for quotations and allows to obtain the relevant information
     /// in real-time, as soon as it is available in the system. The getTickPrices command can
     /// be invoked many times for the same symbol, but only one subscription for a given symbol
     /// will be created. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error>;
+    async fn subscribe_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error>;
 
     /// Establishes subscription for user trade status data and allows to obtain the relevant
     /// information in real-time, as soon as it is available in the system. Please beware that when
     /// multiple records are available, the order in which they are received is not guaranteed.
-    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error>;
+    async fn subscribe_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error>;
 
     /// Allows to get status for sent trade requests in real-time, as soon as it is available
     /// in the system. Please beware that when multiple records are available, the order in which
     /// they are received is not guaranteed.
-    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error>;
+    async fn subscribe_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error>;
 }
 
 
@@ -521,44 +521,44 @@ impl StreamApiClient for XtbClient {
 
     type Stream<T: Send + Sync + for<'de> Deserialize<'de>> = DataStream<T>;
 
-    async fn get_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error> {
+    async fn subscribe_balance(&mut self, arguments: StreamGetBalanceSubscribe) -> Result<Self::Stream<StreamGetBalanceData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetBalanceUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_BALANCE_SUBSCRIBE, arguments, STREAM_BALANCE_UNSUBSCRIBE, stop_arguments, STREAM_BALANCE).await
     }
 
-    async fn get_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error> {
+    async fn subscribe_candles(&mut self, arguments: StreamGetCandlesSubscribe) -> Result<Self::Stream<StreamGetCandlesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetCandlesUnsubscribe::default().with_symbol(&arguments.symbol))?;
         let symbol = arguments.symbol.clone();
         self.send_symbol_scoped_stream_command(STREAM_CANDLES_SUBSCRIBE, arguments, STREAM_CANDLES_UNSUBSCRIBE, stop_arguments, STREAM_CANDLES, &symbol).await
     }
 
-    async fn get_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
+    async fn subscribe_keep_alive(&mut self, arguments: StreamGetKeepAliveSubscribe) -> Result<Self::Stream<StreamGetKeepAliveData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetKeepAliveUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_KEEP_ALIVE_SUBSCRIBE, arguments, STREAM_KEEP_ALIVE_UNSUBSCRIBE, stop_arguments, STREAM_KEEP_ALIVE).await
     }
 
-    async fn get_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
+    async fn subscribe_news(&mut self, arguments: StreamGetNewsSubscribe) -> Result<Self::Stream<StreamGetNewsData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetNewsUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_NEWS_SUBSCRIBE, arguments, STREAM_NEWS_UNSUBSCRIBE, stop_arguments, STREAM_NEWS).await
     }
 
-    async fn get_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error> {
+    async fn subscribe_profits(&mut self, arguments: StreamGetProfitSubscribe) -> Result<Self::Stream<StreamGetProfitData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetProfitUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_PROFITS_SUBSCRIBE, arguments, STREAM_PROFITS_UNSUBSCRIBE, stop_arguments, STREAM_PROFITS).await
     }
 
-    async fn get_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error> {
+    async fn subscribe_tick_prices(&mut self, arguments: StreamGetTickPricesSubscribe) -> Result<Self::Stream<StreamGetTickPricesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTickPricesUnsubscribe::default().with_symbol(&arguments.symbol))?;
         let symbol = arguments.symbol.clone();
         self.send_symbol_scoped_stream_command(STREAM_TICK_PRICES_SUBSCRIBE, arguments, STREAM_TICK_PRICES_UNSUBSCRIBE, stop_arguments, STREAM_TICK_PRICES, &symbol).await
     }
 
-    async fn get_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error> {
+    async fn subscribe_trades(&mut self, arguments: StreamGetTradesSubscribe) -> Result<Self::Stream<StreamGetTradesData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTradesUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_TRADES_SUBSCRIBE, arguments, STREAM_TRADES_UNSUBSCRIBE, stop_arguments, STREAM_TRADES).await
     }
 
-    async fn get_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error> {
+    async fn subscribe_trade_status(&mut self, arguments: StreamGetTradeStatusSubscribe) -> Result<Self::Stream<StreamGetTradeStatusData>, Self::Error> {
         let stop_arguments = Self::convert_data_to_value(StreamGetTradeStatusUnsubscribe::default())?;
         self.send_simple_stream_command(STREAM_TRADE_STATUS_SUBSCRIBE, arguments, STREAM_TRADE_STATUS_UNSUBSCRIBE, stop_arguments, STREAM_TRADE_STATUS).await
     }
