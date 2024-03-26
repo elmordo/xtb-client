@@ -20,7 +20,6 @@ pub trait XtbStreamConnection {
     /// Type of message stream returned by the `make_message_stream` method.
     type MessageStream: MessageStream;
 
-
     type Error;
 
     /// Subscribe for data stream from the XTB server

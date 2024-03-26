@@ -26,8 +26,10 @@ pub trait XtbConnection {
 
     type Error;
 
+    type Response: Future<Output=Result<ProcessedMessage, BasicXtbConnectionError>>;
+
     /// Send standard command to the server.
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, Self::Error>;
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<Self::Response, Self::Error>;
 }
 
 
@@ -98,7 +100,9 @@ impl XtbConnection for BasicXtbConnection {
 
     type Error = BasicXtbConnectionError;
 
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, Self::Error> {
+    type Response = ResponsePromise;
+
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<Self::Response, Self::Error> {
         let (request, tag) = self.build_request(command, payload);
         let request_json = serde_json::to_string(&request).map_err(BasicXtbConnectionError::SerializationError)?;
         let message = Message::Text(request_json);
