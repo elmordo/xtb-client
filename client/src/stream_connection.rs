@@ -166,16 +166,16 @@ pub enum DataMessageFilter {
     Never,
     /// Command name must match
     Command(String),
-    /// All inner filters must match. If list of predicates is empty, return true.
-    All(Vec<DataMessageFilter>),
-    /// Any inner filter must match. If list of predicates is empty, return false
-    Any(Vec<DataMessageFilter>),
     /// Value of field in `data` must match
     /// Return true if and only if the `data` field is type of `Object::Value`, contains key
     /// defined by `name` and the field is equal to `value`.
     FieldValue { name: String, value: Value },
     /// Apply custom filter fn
     Custom(Box<dyn Fn(&StreamDataMessage) -> bool + Send + Sync>),
+    /// All inner filters must match. If list of predicates is empty, return true.
+    All(Vec<DataMessageFilter>),
+    /// Any inner filter must match. If list of predicates is empty, return false
+    Any(Vec<DataMessageFilter>),
 }
 
 
