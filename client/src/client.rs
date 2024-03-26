@@ -16,7 +16,7 @@ use tokio::time::sleep;
 use tracing::{debug, error};
 use url::Url;
 
-use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, DataMessageFilter, MessageStream, ResponsePromise, XtbConnection, XtbConnectionError, XtbStreamConnection, XtbStreamConnectionError};
+use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, DataMessageFilter, MessageStream, ResponsePromise, XtbConnection, BasicXtbConnectionError, XtbStreamConnection, BasicXtbStreamConnectionError};
 use crate::message_processing::ProcessedMessage;
 use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_BALANCE, STREAM_CANDLES, STREAM_BALANCE_SUBSCRIBE, STREAM_CANDLES_SUBSCRIBE, STREAM_KEEP_ALIVE_SUBSCRIBE, STREAM_NEWS_SUBSCRIBE, STREAM_PROFITS_SUBSCRIBE, STREAM_TICK_PRICES_SUBSCRIBE, STREAM_TRADE_STATUS_SUBSCRIBE, STREAM_TRADES_SUBSCRIBE, STREAM_KEEP_ALIVE, STREAM_NEWS, STREAM_PING, STREAM_PROFITS, STREAM_BALANCE_UNSUBSCRIBE, STREAM_CANDLES_UNSUBSCRIBE, STREAM_KEEP_ALIVE_UNSUBSCRIBE, STREAM_NEWS_UNSUBSCRIBE, STREAM_PROFITS_UNSUBSCRIBE, STREAM_TICK_PRICES_UNSUBSCRIBE, STREAM_TRADE_STATUS_UNSUBSCRIBE, STREAM_TRADES_UNSUBSCRIBE, STREAM_TICK_PRICES, STREAM_TRADE_STATUS, STREAM_TRADES, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
@@ -91,9 +91,9 @@ pub enum XtbClientBuilderError {
     #[error("Url is invalid or malformed: {0} ({1})")]
     InvalidUrl(String, url::ParseError),
     #[error("Cannot connect to server")]
-    CannotMakeConnection(XtbConnectionError),
+    CannotMakeConnection(BasicXtbConnectionError),
     #[error("Cannot connect to stream server")]
-    CannotMakeStreamConnection(XtbStreamConnectionError),
+    CannotMakeStreamConnection(BasicXtbStreamConnectionError),
     #[error("Login failed for user: {user_id} ({extra_info:?})")]
     LoginFailed { user_id: String, extra_info: String },
     #[error("Something gets horribly wrong: {0}")]
@@ -356,8 +356,8 @@ impl XtbClient {
         let payload = Self::convert_data_to_value(request)?;
         conn.send_command(command, Some(payload)).await.map_err(|err| {
             match err {
-                XtbConnectionError::SerializationError(err) => XtbClientError::SerializationFailed(err),
-                XtbConnectionError::CannotSendRequest(err) => XtbClientError::CannotSendCommand(err),
+                BasicXtbConnectionError::SerializationError(err) => XtbClientError::SerializationFailed(err),
+                BasicXtbConnectionError::CannotSendRequest(err) => XtbClientError::CannotSendCommand(err),
                 _ => XtbClientError::UnexpectedError,
             }
         })
@@ -572,7 +572,7 @@ pub enum XtbClientError {
     #[error("Cannot send command to server")]
     CannotSendCommand(tokio_tungstenite::tungstenite::Error),
     #[error("Cannot send stream command")]
-    CannotSendStreamCommand(XtbStreamConnectionError),
+    CannotSendStreamCommand(BasicXtbStreamConnectionError),
     #[error("Unexpected error.")]
     UnexpectedError,
     #[error("Cannot deserialize data")]

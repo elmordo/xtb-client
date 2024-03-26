@@ -20,15 +20,18 @@ pub trait XtbStreamConnection {
     /// Type of message stream returned by the `make_message_stream` method.
     type MessageStream: MessageStream;
 
+
+    type Error;
+
     /// Subscribe for data stream from the XTB server
     ///
     /// The `arguments` must be `Value::Object`. Any other variants causes an error
-    async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
+    async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), Self::Error>;
 
     /// Unsubscribe from data stream from the XTB server
     ///
     /// The `arguments` value must be `Value::Object` or `Value::Null`. Any other variants causes an error
-    async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError>;
+    async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), Self::Error>;
 
     /// Create message stream builder
     async fn make_message_stream(&mut self, filter: DataMessageFilter) -> Self::MessageStream;
@@ -50,10 +53,10 @@ pub struct BasicXtbStreamConnection {
 
 impl BasicXtbStreamConnection {
     /// Create new instance of the stream connection.
-    pub async fn new(url: Url, stream_session_id: String) -> Result<Self, XtbStreamConnectionError> {
+    pub async fn new(url: Url, stream_session_id: String) -> Result<Self, BasicXtbStreamConnectionError> {
         let (sender, _) = channel(64usize);
         let host_clone = url.as_str().to_owned();
-        let (conn, _) = connect_async(url).await.map_err(|_| XtbStreamConnectionError::CannotConnect(host_clone))?;
+        let (conn, _) = connect_async(url).await.map_err(|_| BasicXtbStreamConnectionError::CannotConnect(host_clone))?;
         let (sink, stream) = conn.split();
         let listener_join = listen_for_stream_data(stream, MessageHandler::new(sender.clone()));
         Ok(Self {
@@ -65,23 +68,23 @@ impl BasicXtbStreamConnection {
     }
 
     /// Build message from request and arguments and send it to the server.
-    async fn assemble_and_send<T: Serialize>(&mut self, request: T, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
-        let mut obj = to_value(request).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?;
+    async fn assemble_and_send<T: Serialize>(&mut self, request: T, arguments: Option<Value>) -> Result<(), BasicXtbStreamConnectionError> {
+        let mut obj = to_value(request).map_err(|err| BasicXtbStreamConnectionError::SerializationFailed(err))?;
         let prepared_arguments = Self::prepare_arguments(arguments)?;
 
         if let Some(mut prepared_obj) = prepared_arguments {
             // unwrap is safe here.
             obj.as_object_mut().unwrap().append(&mut prepared_obj);
         }
-        let serialized = to_string(&obj).map_err(|err| XtbStreamConnectionError::SerializationFailed(err))?;
+        let serialized = to_string(&obj).map_err(|err| BasicXtbStreamConnectionError::SerializationFailed(err))?;
         let message = Message::text(serialized);
-        self.sink.send(message).await.map_err(|err| XtbStreamConnectionError::CannotSend(err))
+        self.sink.send(message).await.map_err(|err| BasicXtbStreamConnectionError::CannotSend(err))
     }
 
     /// Check and prepare arguments.
     ///
     /// The arguments must be None or Some(Value::Object) or Some(Value::Null). Otherwise, an error is returned.
-    fn prepare_arguments(arguments: Option<Value>) -> Result<Option<Map<String, Value>>, XtbStreamConnectionError> {
+    fn prepare_arguments(arguments: Option<Value>) -> Result<Option<Map<String, Value>>, BasicXtbStreamConnectionError> {
         match arguments {
             // No arguments are provided
             None => Ok(None),
@@ -89,7 +92,7 @@ impl BasicXtbStreamConnection {
             Some(Value::Object(obj)) => Ok(Some(obj)),
             Some(Value::Null) => Ok(None),
             // Invalid input data
-            _ => Err(XtbStreamConnectionError::InvalidArgumentsType)
+            _ => Err(BasicXtbStreamConnectionError::InvalidArgumentsType)
         }
     }
 }
@@ -106,7 +109,9 @@ impl Drop for BasicXtbStreamConnection {
 impl XtbStreamConnection for BasicXtbStreamConnection {
     type MessageStream = BasicMessageStream;
 
-    async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
+    type Error = BasicXtbStreamConnectionError;
+
+    async fn subscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), Self::Error> {
         let request = SubscribeRequest::default()
             .with_command(command)
             .with_stream_session_id(&self.stream_session_id);
@@ -115,7 +120,7 @@ impl XtbStreamConnection for BasicXtbStreamConnection {
         self.assemble_and_send(request, arguments).await
     }
 
-    async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), XtbStreamConnectionError> {
+    async fn unsubscribe(&mut self, command: &str, arguments: Option<Value>) -> Result<(), Self::Error> {
         let request = UnsubscribeRequest::default().with_command(command);
         info!("Unsubscribing from {command}");
         debug!("Unsubscription arguments are {arguments:?}");
@@ -240,7 +245,7 @@ impl DataMessageFilter {
 
 
 #[derive(Debug, Error)]
-pub enum XtbStreamConnectionError {
+pub enum BasicXtbStreamConnectionError {
     #[error("Cannot connect to server ({0}")]
     CannotConnect(String),
     #[error("Cannot send message")]

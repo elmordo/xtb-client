@@ -23,13 +23,16 @@ use crate::message_processing::ProcessedMessage;
 /// Interface for XTB servers connectors.
 #[async_trait]
 pub trait XtbConnection {
+
+    type Error;
+
     /// Send standard command to the server.
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError>;
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, Self::Error>;
 }
 
 
 #[derive(Debug, Error)]
-pub enum XtbConnectionError {
+pub enum BasicXtbConnectionError {
     #[error("Cannot connect to server ({0}")]
     CannotConnect(String),
     #[error("Cannot serialize command payload")]
@@ -50,11 +53,11 @@ pub struct BasicXtbConnection {
 
 impl BasicXtbConnection {
     /// Create new instance from server url
-    pub async fn new(url: Url) -> Result<Self, XtbConnectionError> {
+    pub async fn new(url: Url) -> Result<Self, BasicXtbConnectionError> {
         let host_clone = url.as_str().to_owned();
         let (conn, _) = connect_async(url).await.map_err(|err| {
             error!("Cannot connect to server {}: {:?}", host_clone, err);
-            XtbConnectionError::CannotConnect(host_clone)
+            BasicXtbConnectionError::CannotConnect(host_clone)
         })?;
 
         let (sink, stream) = conn.split();
@@ -92,14 +95,17 @@ impl BasicXtbConnection {
 
 #[async_trait]
 impl XtbConnection for BasicXtbConnection {
-    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, XtbConnectionError> {
+
+    type Error = BasicXtbConnectionError;
+
+    async fn send_command(&mut self, command: &str, payload: Option<Value>) -> Result<ResponsePromise, Self::Error> {
         let (request, tag) = self.build_request(command, payload);
-        let request_json = serde_json::to_string(&request).map_err(XtbConnectionError::SerializationError)?;
+        let request_json = serde_json::to_string(&request).map_err(BasicXtbConnectionError::SerializationError)?;
         let message = Message::Text(request_json);
 
         let (promise, state) = ResponsePromise::new();
         self.promise_state_by_tag.lock().await.insert(tag, state);
-        self.sink.send(message).await.map_err(XtbConnectionError::CannotSendRequest)?;
+        self.sink.send(message).await.map_err(BasicXtbConnectionError::CannotSendRequest)?;
 
         Ok(promise)
     }
@@ -122,7 +128,7 @@ pub struct ResponsePromiseState {
     ///
     /// * `None` - the response is not ready yet.
     /// * `Some(response)` - the response is ready to be delivered.
-    result: Option<Result<ProcessedMessage, XtbConnectionError>>,
+    result: Option<Result<ProcessedMessage, BasicXtbConnectionError>>,
     /// If the `ResponsePromise` was palled, the `Waker` is stored here.
     /// When response is set and the waker is set, the waker is called.
     waker: Option<Waker>,
@@ -131,7 +137,7 @@ pub struct ResponsePromiseState {
 
 impl ResponsePromiseState {
     /// Set response. If a waker is set in the state, it is notified.
-    pub fn set_result(&mut self, result: Result<ProcessedMessage, XtbConnectionError>) {
+    pub fn set_result(&mut self, result: Result<ProcessedMessage, BasicXtbConnectionError>) {
         self.result = Some(result);
         if let Some(waker) = self.waker.take() {
             waker.wake();
@@ -193,7 +199,7 @@ impl ResponsePromise {
 
 
 impl Future for ResponsePromise {
-    type Output = Result<ProcessedMessage, XtbConnectionError>;
+    type Output = Result<ProcessedMessage, BasicXtbConnectionError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Try to get the lock
