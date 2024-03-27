@@ -20,6 +20,7 @@ use crate::{BasicMessageStream, BasicXtbConnection, BasicXtbStreamConnection, Da
 use crate::message_processing::ProcessedMessage;
 use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_BALANCE, STREAM_CANDLES, STREAM_BALANCE_SUBSCRIBE, STREAM_CANDLES_SUBSCRIBE, STREAM_KEEP_ALIVE_SUBSCRIBE, STREAM_NEWS_SUBSCRIBE, STREAM_PROFITS_SUBSCRIBE, STREAM_TICK_PRICES_SUBSCRIBE, STREAM_TRADE_STATUS_SUBSCRIBE, STREAM_TRADES_SUBSCRIBE, STREAM_KEEP_ALIVE, STREAM_NEWS, STREAM_PING, STREAM_PROFITS, STREAM_BALANCE_UNSUBSCRIBE, STREAM_CANDLES_UNSUBSCRIBE, STREAM_KEEP_ALIVE_UNSUBSCRIBE, STREAM_NEWS_UNSUBSCRIBE, STREAM_PROFITS_UNSUBSCRIBE, STREAM_TICK_PRICES_UNSUBSCRIBE, STREAM_TRADE_STATUS_UNSUBSCRIBE, STREAM_TRADES_UNSUBSCRIBE, STREAM_TICK_PRICES, STREAM_TRADE_STATUS, STREAM_TRADES, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
+
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
 pub struct XtbClientBuilder {
@@ -41,9 +42,19 @@ const DEFAULT_XTB_DEMO_STREAM: &'static str = "wss://ws.xtb.com/demoStream";
 
 impl XtbClientBuilder {
     pub fn new(api_url: &str, stream_api_url: &str) -> Self {
-        XtbClientBuilder {
+        Self {
             api_url: Some(api_url.to_string()),
             stream_api_url: Some(stream_api_url.to_string()),
+            app_id: None,
+            app_name: None,
+            ping_period: None,
+        }
+    }
+
+    pub fn new_bare() -> Self {
+        return Self {
+            api_url: None,
+            stream_api_url: None,
             app_id: None,
             app_name: None,
             ping_period: None,

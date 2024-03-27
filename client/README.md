@@ -19,6 +19,44 @@ The XTB interface is provided by the `XtbClient` struct implementing the `XtbApi
 can be created by the `XtbClientBuilder` struct and when created, it is automatically connected to the server and
 the `login` command is performed. If both is success, the `XtbClient` instance is returned.
 
+### Configuration
+
+The `XtbClient` is configured by the `XtbClientBuilder`. The builder has three initialization methods:
+
+* `new(api_url: &str, stream_api_url: &str)` - create new instance with custom urls.
+* `new_real()` - create new instance with real account servers preset.
+* `new_demo()` - create new instance with demo account servers preset.
+* `new_bare()` - create new instance without any value set.
+
+The setters (prefixed by `with_` and options are flattened to underlying type) and getters (not prefixed) can be used 
+to override following attributes:
+
+* `api_url: Option<String>` - URL of the request/response api server.
+* `stream_api_url: Option<String>` - URL of the stream api server.
+* `app_id: Option<String>` - optional application id (marked as deprecated in the official documentation).
+* `app_name: Option<String>` - optional application name (marked as deprecated in the official documentation).
+* `ping_period: Option<u64>` - time period between ping requests (default is 30s)
+
+When a builder instance is configured, the `build` method can be called. The method accepts two `&str` params: username and password.
+
+When the method is called, server connections are created, user is logged in and ping tokio green threads are spawned.
+
+```rust
+use xtb_client::XtbClientBuilder;
+
+
+#[tokio::main]
+fn main() {
+  let real_builder = XtbClientBuilder::new_real();
+  let demo_builder = XtbClientBuilder::new_demo();
+  let custom_builder = XtbClientBuilder::new("wss://my-server.com/api", "wss://my-server.com/apiStream").with_ping_period(20u64);
+  let bare_builder = XtbClientBuilder::new_bare().with_api_url("wss://my-server.com/api").with_stream_api_url("wss://my-server.com/apiStream");
+  
+  let client = custom_builder.build("12345", "reallySecretPassword");
+}
+
+```
+
 ### Request/response API
 
 The simplest way how to communicate with the server is a request/response API. This api always returns a response to
