@@ -33,6 +33,11 @@ pub struct XtbClientBuilder {
 
 const DEFAULT_PING_INTERVAL_S: u64 = 30;
 
+const DEFAULT_XTB_REAL: &'static str = "wss://ws.xtb.com/real";
+const DEFAULT_XTB_REAL_STREAM: &'static str = "wss://ws.xtb.com/realStream";
+const DEFAULT_XTB_DEMO: &'static str = "wss://ws.xtb.com/demo";
+const DEFAULT_XTB_DEMO_STREAM: &'static str = "wss://ws.xtb.com/demoStream";
+
 
 impl XtbClientBuilder {
     pub fn new(api_url: &str, stream_api_url: &str) -> Self {
@@ -43,6 +48,14 @@ impl XtbClientBuilder {
             app_name: None,
             ping_period: None,
         }
+    }
+
+    pub fn new_real() -> Self {
+        Self::new(DEFAULT_XTB_REAL, DEFAULT_XTB_REAL_STREAM)
+    }
+
+    pub fn new_demo() -> Self {
+        Self::new(DEFAULT_XTB_DEMO, DEFAULT_XTB_DEMO_STREAM)
     }
 
     pub async fn build(self, user_id: &str, password: &str) -> Result<XtbClient, XtbClientBuilderError> {
