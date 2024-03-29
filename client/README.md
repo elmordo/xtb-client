@@ -205,6 +205,16 @@ async fn main() {
 
 ```
 
+# TODO
+
+The library stays in the development (version number starting with 0) until following steps won't be finished.
+
+* **tests** - test of main features is missing
+* **dummy implementations** - create dummy implementation of connection and client traits. Those implementations can be
+used for testing or demonstration examples.
+* **Unknown enum variants** - the `MarginMode` variant with value `104` and `QuoteId` variants with values 5 and 6 are not
+mentioned in the official documentation. Meaning of these variants must be known before the library will be stabilized. 
+
 # Buy me a ~~coffee~~ beer
 
-If you like this library, support me by one cold [beer](https://www.buymeacoffee.com/elmordo). The beer is tasty and full of vitamins :-)
+If you like this library, or you want to support its development, support me by one cold [beer](https://www.buymeacoffee.com/elmordo). The beer is tasty and full of vitamins :-)
