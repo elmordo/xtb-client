@@ -21,13 +21,35 @@ use crate::message_processing::ProcessedMessage;
 use crate::schema::{COMMAND_GET_ALL_SYMBOLS, COMMAND_GET_CALENDAR, COMMAND_GET_CHART_LAST_REQUEST, COMMAND_GET_CHART_RANGE_REQUEST, COMMAND_GET_COMMISSION_DEF, COMMAND_GET_CURRENT_USER_DATA, COMMAND_GET_IBS_HISTORY, COMMAND_GET_MARGIN_LEVEL, COMMAND_GET_MARGIN_TRADE, COMMAND_GET_NEWS, COMMAND_GET_PROFIT_CALCULATION, COMMAND_GET_SERVER_TIME, COMMAND_GET_STEP_RULES, COMMAND_GET_SYMBOL, COMMAND_GET_TICK_PRICES, COMMAND_GET_TRADE_RECORDS, COMMAND_GET_TRADES, COMMAND_GET_TRADES_HISTORY, COMMAND_GET_TRADING_HOURS, COMMAND_GET_VERSION, COMMAND_LOGIN, COMMAND_PING, COMMAND_TRADE_TRANSACTION, COMMAND_TRADE_TRANSACTION_STATUS, ErrorResponse, GetAllSymbolsRequest, GetAllSymbolsResponse, GetCalendarRequest, GetCalendarResponse, GetChartLastRequestRequest, GetChartLastRequestResponse, GetChartRangeRequestRequest, GetChartRangeRequestResponse, GetCommissionDefRequest, GetCommissionDefResponse, GetCurrentUserDataRequest, GetCurrentUserDataResponse, GetIbsHistoryRequest, GetIbsHistoryResponse, GetMarginLevelRequest, GetMarginLevelResponse, GetMarginTradeRequest, GetMarginTradeResponse, GetNewsRequest, GetNewsResponse, GetProfitCalculationRequest, GetProfitCalculationResponse, GetServerTimeRequest, GetServerTimeResponse, GetStepRulesRequest, GetStepRulesResponse, GetSymbolRequest, GetSymbolResponse, GetTickPricesRequest, GetTickPricesResponse, GetTradeRecordsRequest, GetTradeRecordsResponse, GetTradesHistoryRequest, GetTradesHistoryResponse, GetTradesRequest, GetTradesResponse, GetTradingHoursRequest, GetTradingHoursResponse, GetVersionRequest, GetVersionResponse, LoginRequest, PingRequest, STREAM_BALANCE, STREAM_CANDLES, STREAM_BALANCE_SUBSCRIBE, STREAM_CANDLES_SUBSCRIBE, STREAM_KEEP_ALIVE_SUBSCRIBE, STREAM_NEWS_SUBSCRIBE, STREAM_PROFITS_SUBSCRIBE, STREAM_TICK_PRICES_SUBSCRIBE, STREAM_TRADE_STATUS_SUBSCRIBE, STREAM_TRADES_SUBSCRIBE, STREAM_KEEP_ALIVE, STREAM_NEWS, STREAM_PING, STREAM_PROFITS, STREAM_BALANCE_UNSUBSCRIBE, STREAM_CANDLES_UNSUBSCRIBE, STREAM_KEEP_ALIVE_UNSUBSCRIBE, STREAM_NEWS_UNSUBSCRIBE, STREAM_PROFITS_UNSUBSCRIBE, STREAM_TICK_PRICES_UNSUBSCRIBE, STREAM_TRADE_STATUS_UNSUBSCRIBE, STREAM_TRADES_UNSUBSCRIBE, STREAM_TICK_PRICES, STREAM_TRADE_STATUS, STREAM_TRADES, StreamDataMessage, StreamGetBalanceData, StreamGetBalanceSubscribe, StreamGetBalanceUnsubscribe, StreamGetCandlesData, StreamGetCandlesSubscribe, StreamGetCandlesUnsubscribe, StreamGetKeepAliveData, StreamGetKeepAliveSubscribe, StreamGetKeepAliveUnsubscribe, StreamGetNewsData, StreamGetNewsSubscribe, StreamGetNewsUnsubscribe, StreamGetProfitData, StreamGetProfitSubscribe, StreamGetProfitUnsubscribe, StreamGetTickPricesData, StreamGetTickPricesSubscribe, StreamGetTickPricesUnsubscribe, StreamGetTradesData, StreamGetTradesSubscribe, StreamGetTradeStatusData, StreamGetTradeStatusSubscribe, StreamGetTradeStatusUnsubscribe, StreamGetTradesUnsubscribe, StreamPingSubscribe, TradeTransactionRequest, TradeTransactionResponse, TradeTransactionStatusRequest, TradeTransactionStatusResponse};
 
 
+/// Builder for `XtbClient`.
+///
+/// Configuration can be set with this class and when configuration step is finished, the `XtbClient`
+/// can be created by the `build()` method.
+///
+/// Configurable fields are:
+///
+/// * `api_url` - url of the request/response API server.
+/// * `stream_api_url` - url of the stream API server.
+/// * `app_id` - application identifier (deprecated by the official API documentation)
+/// * `app_name` - application name (deprecated by the official API documentation)
+/// * `ping_period` - interval between ping commands. Default interval is 30s.
+///
+/// The required configuration values are `api_url` and `stream_api_url`. Other values are optional.
+///
+/// Official documentation says, the `ping_interval` should be less than 10 minutes. But real world
+/// observation shows that the maximal interval must be less than 1 minute.
 #[derive(Default, Setters)]
 #[setters(into, prefix = "with_", strip_option)]
 pub struct XtbClientBuilder {
+    /// Url of the request/response API server
     api_url: Option<String>,
+    /// Url of the stream API server
     stream_api_url: Option<String>,
+    /// Identifier of the application. (Deprecated by the official api)
     app_id: Option<String>,
+    /// Name of the application (deprecated by the official api)
     app_name: Option<String>,
+    /// Interval between pings. Shouldn't be greater than 1 minute.
     ping_period: Option<u64>,
 }
 
@@ -41,6 +63,9 @@ const DEFAULT_XTB_DEMO_STREAM: &'static str = "wss://ws.xtb.com/demoStream";
 
 
 impl XtbClientBuilder {
+    /// Create new builder using custom server urls.
+    ///
+    /// The resulting builder instance can be instantly built into the `XtbClient`
     pub fn new(api_url: &str, stream_api_url: &str) -> Self {
         Self {
             api_url: Some(api_url.to_string()),
@@ -51,6 +76,9 @@ impl XtbClientBuilder {
         }
     }
 
+    /// Create new builder without any configuration.
+    ///
+    /// The `api_url` and the `stream_api_url` must be set at least.
     pub fn new_bare() -> Self {
         return Self {
             api_url: None,
@@ -61,14 +89,32 @@ impl XtbClientBuilder {
         }
     }
 
+    /// Shorthand for `XtbClientBuilder::new("wss://ws.xtb.com/real", "wss://ws.xtb.com/realStream")`
     pub fn new_real() -> Self {
         Self::new(DEFAULT_XTB_REAL, DEFAULT_XTB_REAL_STREAM)
     }
 
+
+    /// Shorthand for `XtbClientBuilder::new("wss://ws.xtb.com/demo", "wss://ws.xtb.com/demoStream")`
     pub fn new_demo() -> Self {
         Self::new(DEFAULT_XTB_DEMO, DEFAULT_XTB_DEMO_STREAM)
     }
 
+    /// Consume the builder instance and create instance of the `XtbClient`.
+    ///
+    /// The login is performed in this step.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(XtbClient)` - connected to the servers. The credentials given as arguments are
+    /// used to log in an user.
+    /// * `Err(XtbClintBuilderError)` - cannot connect to the servers.
+    ///
+    /// Common reasons of an errors are:
+    ///
+    /// * Incorrect credentials.
+    /// * Malformed API servers urls.
+    /// * Missing required configuration value.
     pub async fn build(self, user_id: &str, password: &str) -> Result<XtbClient, XtbClientBuilderError> {
         let api_url = Self::make_url(self.api_url)?;
         let stream_api_url = Self::make_url(self.stream_api_url)?;
@@ -101,6 +147,13 @@ impl XtbClientBuilder {
         Ok(XtbClient::new(connection, stream_connection, self.ping_period.unwrap_or(DEFAULT_PING_INTERVAL_S)))
     }
 
+    /// Convert string into an `Url` instance. This method is also used for validation of url presence.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Url)` with correctly parsed url.
+    /// * `Err(XtbClientBuilderError::RequiredFieldMissing)` if argument is `None`
+    /// * `Err(XtbClientBuilderError::InvalidUrl)` if the url is malformed (cannot be parsed).
     fn make_url(source: Option<String>) -> Result<Url, XtbClientBuilderError> {
         let source_str = source.ok_or_else(|| XtbClientBuilderError::RequiredFieldMissing("api_url".to_owned()))?;
         Url::from_str(&source_str).map_err(|err| XtbClientBuilderError::InvalidUrl(source_str, err))
@@ -125,6 +178,7 @@ pub enum XtbClientBuilderError {
 }
 
 
+/// Declaration of the Request/response API interface.
 #[async_trait]
 pub trait CommandApi {
     /// Error returned from methods when command failed
@@ -267,6 +321,7 @@ pub trait CommandApi {
 }
 
 
+/// Declaration of the stream API interface
 #[async_trait]
 pub trait StreamApi {
     /// Error returned from the client when something went wrong
@@ -315,19 +370,39 @@ pub trait StreamApi {
 }
 
 
+/// Implementor of the API traits.
+///
+/// This struct is designed to be an interface between user (application) and XTB API servers.
+///
+/// The `XtbClient` is responsible for sending and receiving pings and logout when instance is dropped.
 pub struct XtbClient {
+    /// Connection to the request/response server
     connection: Arc<Mutex<BasicXtbConnection>>,
+    /// Connection to the stream server
     stream_manager: StreamManager,
+    /// handle of the request/response server ping worker
     ping_join_handle: JoinHandle<()>,
+    /// handle of the stream server ping worker
     stream_ping_join_handle: JoinHandle<()>,
 }
 
 
 impl XtbClient {
+    /// Create builder for the `XtbClient`.
+    ///
+    /// When builder is configured, the `build()` method can be called with credentials passed to the
+    /// method arguments. This call create new `XtbClient` instance.
     pub fn builder() -> XtbClientBuilder {
         XtbClientBuilder::default()
     }
 
+    /// Create new instance of the `XtbClient`. it expects connected and logged connections to the
+    /// request/response and the stream server.
+    ///
+    /// # Note
+    ///
+    /// The login is performed by the builder because the stream server implementation needs to know
+    /// a stream session id which is provided by the `login` command.
     pub fn new(connection: BasicXtbConnection, stream_connection: BasicXtbStreamConnection, ping_period: u64) -> Self {
         let connection = Arc::new(Mutex::new(connection));
 
@@ -344,6 +419,9 @@ impl XtbClient {
         }
     }
 
+    /// Send command to the server and wait for response.
+    ///
+    /// If command does not return any response, create default one with type of `RESP`.
     async fn send_and_wait_or_default<REQ, RESP>(&mut self, command: &str, request: REQ) -> Result<RESP, XtbClientError>
         where
             REQ: Serialize,
@@ -351,6 +429,7 @@ impl XtbClient {
         self.send_and_wait(command, request).await.map(|val| val.unwrap_or_default())
     }
 
+    /// Send the command and wait for a response.
     async fn send_and_wait<REQ, RESP>(&mut self, command: &str, request: REQ) -> Result<Option<RESP>, XtbClientError>
         where
             REQ: Serialize,
@@ -372,6 +451,7 @@ impl XtbClient {
         }
     }
 
+    /// Send a command request to the server and return `Ok(ResponsePromise)` o
     async fn send<A>(&mut self, command: &str, request: A) -> Result<ResponsePromise, XtbClientError>
         where
             A: Serialize
@@ -387,10 +467,30 @@ impl XtbClient {
         })
     }
 
+    /// Serialize payload data into value.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Value)` when data was serialized successfully.
+    /// * `Err(XtbClientError::SerializationFailed)` - data cannot be serialized.
     fn convert_data_to_value<T: Serialize>(data: T) -> Result<Value, XtbClientError> {
         to_value(data).map_err(|err| XtbClientError::SerializationFailed(err))
     }
 
+    /// Send stream command to the stream API server.
+    ///
+    /// # Parameters
+    ///
+    /// * `subscribe_command` - command name of the subscribe command (e.g. `getCandles`)
+    /// * `subscribe_arguments` - arguments for the subscribe command
+    /// * `unsubscribe_command` - command name of the unsubscribe command (e.g. `stopCandles`)
+    /// * `unsubscribe_arguments` - arguments for the unsubscribe command
+    /// * `data_command` - command name in data messages (e.g. `candle`)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok<DataStream<T>>` - data stream with filter set to messages related to sent command
+    /// * `Err<XtbClientError>` - unable to send command
     async fn send_simple_stream_command<T, SA, UA>(
         &mut self,
         subscribe_command: &str,
@@ -410,6 +510,21 @@ impl XtbClient {
         self.stream_manager.subscribe(subscribe_command, Some(subscribe_arguments), unsubscribe_command, Some(unsubscribe_arguments), data_command, filter).await
     }
 
+    /// Send stream command to the stream API server and add filter by the `symbol` field to the
+    /// data stream.
+    ///
+    /// # Parameters
+    ///
+    /// * `subscribe_command` - command name of the subscribe command (e.g. `getCandles`)
+    /// * `subscribe_arguments` - arguments for the subscribe command
+    /// * `unsubscribe_command` - command name of the unsubscribe command (e.g. `stopCandles`)
+    /// * `unsubscribe_arguments` - arguments for the unsubscribe command
+    /// * `data_command` - command name in data messages (e.g. `candle`)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok<DataStream<T>>` - data stream with filter set to messages related to sent command
+    /// * `Err<XtbClientError>` - unable to send command
     async fn send_symbol_scoped_stream_command<T, SA, UA>(
         &mut self,
         subscribe_command: &str,
@@ -617,6 +732,7 @@ struct StreamManagerState {
 
 
 impl StreamManagerState {
+    /// Create new instance of the struct
     pub fn new(connection: BasicXtbStreamConnection) -> Self {
         Self {
             connection,
@@ -644,6 +760,21 @@ impl StreamManager {
         }
     }
 
+    /// Subscribe for a stream from the stream API server.
+    ///
+    /// # Parameters
+    ///
+    /// * `subscribe_command` - command name of the subscribe command (e.g. `getCandles`)
+    /// * `subscribe_arguments` - arguments for the subscribe command
+    /// * `unsubscribe_command` - command name of the unsubscribe command (e.g. `stopCandles`)
+    /// * `unsubscribe_arguments` - arguments for the unsubscribe command
+    /// * `subscription_key` - key used to track number of subscribers of the data stream
+    /// * `filter` - the filter predicate for message routing.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok<DataStream<T>>` - data stream with filter set to messages related to sent command
+    /// * `Err<XtbClientError>` - unable to send command
     pub async fn subscribe<T: for<'de> Deserialize<'de> + Send + Sync>(
         &mut self,
         subscribe_command: &str,
@@ -660,6 +791,18 @@ impl StreamManager {
         Ok(DataStream::new(stream, self.clone(), subscription_key.to_owned(), unsubscribe_command.to_owned(), unsubscribe_arguments))
     }
 
+    /// Unsubscribe from a stream.
+    ///
+    /// # Parameters
+    ///
+    /// * `subscription_key` - the subscription key where number of subscribers is tracked
+    /// * `command` - an unsubscribe command to be sent to the server
+    /// * `arguments` - the unsubscribe command arguments
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - success
+    /// * `Err(XtbClientError::CannotSendStreamCommand)` - fail
     pub async fn unsubscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
         let mut state = self.state.lock().await;
         state.connection.unsubscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
@@ -669,15 +812,24 @@ impl StreamManager {
 }
 
 
+/// Stream of messages delivered to a consumer.
+///
+/// The message data is deserialized and typed to data type related to a command.
 pub struct DataStream<T>
     where
         T: for<'de> Deserialize<'de> + Send + Sync
 {
+    /// The message stream with raw messages
     message_stream: BasicMessageStream,
+    /// The stream manager used to unsubscribe from a stream when struct is dropped
     stream_manager: StreamManager,
+    /// Internal subscription key for subscriber tracking
     subscription_key: String,
+    /// Unsubscribe command to be sent to the XTB server
     unsubscribe_command: String,
+    /// Unsubscribe command arguments
     unsubscribe_arguments: Option<Value>,
+    /// Data type returned to a consumer
     type_: PhantomData<T>,
 }
 
@@ -685,6 +837,7 @@ impl<T> DataStream<T>
     where
         T: for<'de> Deserialize<'de> + Send + Sync
 {
+    /// Create new instance of the stream.
     fn new(message_stream: BasicMessageStream, stream_manager: StreamManager, subscription_key: String, unsubscribe_command: String, unsubscribe_arguments: Option<Value>) -> Self {
         Self {
             message_stream,
@@ -696,6 +849,13 @@ impl<T> DataStream<T>
         }
     }
 
+    /// Wait and get next message from the stream.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Some(T))` - next message in stream.
+    /// * `Ok(None)` - there is no message left
+    /// * `Err(DataStreamError)` - message was recived but cannot be processed. A next message can be ok.
     pub async fn next(&mut self) -> Result<Option<T>, DataStreamError> {
         let message = self.message_stream.next().await;
         match message {
@@ -704,6 +864,7 @@ impl<T> DataStream<T>
         }
     }
 
+    /// Deserialize serialized data representation to actual type `T`.
     fn process_message(msg: StreamDataMessage) -> Result<T, DataStreamError> {
         from_value(msg.data).map_err(|err| DataStreamError::CannotDeserializeValue(err))
     }
