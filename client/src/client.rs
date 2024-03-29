@@ -180,7 +180,7 @@ pub enum XtbClientBuilderError {
 
 /// Declaration of the Request/response API interface.
 #[async_trait]
-pub trait CommandApi {
+pub trait RequestResponseApi {
     /// Error returned from methods when command failed
     type Error;
 
@@ -561,7 +561,7 @@ impl Drop for XtbClient {
 
 
 #[async_trait]
-impl CommandApi for XtbClient {
+impl RequestResponseApi for XtbClient {
     type Error = XtbClientError;
 
     async fn get_all_symbols(&mut self, request: GetAllSymbolsRequest) -> Result<GetAllSymbolsResponse, Self::Error> {

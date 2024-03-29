@@ -1,5 +1,5 @@
 use tracing::Level;
-use xtb_client::CommandApi;
+use xtb_client::RequestResponseApi;
 use xtb_client::schema::GetAllSymbolsRequest;
 
 #[tokio::main]
