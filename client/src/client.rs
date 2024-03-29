@@ -805,8 +805,13 @@ impl StreamManager {
     /// * `Err(XtbClientError::CannotSendStreamCommand)` - fail
     pub async fn unsubscribe(&mut self, subscription_key: &str, command: &str, arguments: Option<Value>) -> Result<(), XtbClientError> {
         let mut state = self.state.lock().await;
-        state.connection.unsubscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
-        *state.subscriptions.entry(subscription_key.to_owned()).or_default() -= 1;
+        let mut entry = state.subscriptions.entry(subscription_key.to_owned()).or_default();
+        if *entry > 0 {
+            *entry -= 1;
+        }
+        if *entry == 0 {
+            state.connection.unsubscribe(command, arguments).await.map_err(|err| XtbClientError::CannotSendStreamCommand(err))?;
+        }
         Ok(())
     }
 }
