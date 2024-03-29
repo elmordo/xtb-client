@@ -1,14 +1,13 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
+use rstest_reuse;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use client::*;
+pub use connection::*;
+pub use stream_connection::*;
+
+pub mod schema;
+mod connection;
+mod message_processing;
+mod listener;
+mod stream_connection;
+mod client;
