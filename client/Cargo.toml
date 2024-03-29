@@ -2,6 +2,12 @@
 name = "xtb-client"
 version = "0.1.0"
 edition = "2021"
+description = "Rust implementation of XTB Broker API connector"
+keywords = ["xtb", "fintech", "xstation", "trading"]
+license = "MIT"
+repository = "https://github.com/elmordo/xtb-client"
+authors = ["Petr Jindra"]
+categories = ["api-bindings", "finance"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
