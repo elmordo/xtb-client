@@ -366,4 +366,75 @@ mod tests {
             assert_eq!(deserialized, expected);
         }
     }
+
+    mod primitive_conversion {
+        use std::fmt::Debug;
+        use rstest::rstest;
+        use crate::schema::enums::{QuoteId, MarginMode, ProfitMode, ImpactLevel, TimePeriod, TradingAction, TradingCommand, DayOfWeek, TransactionStatus, TransactionType};
+
+        #[rstest]
+        #[case::QuoteId_Fixed(QuoteId::Fixed, 1u8)]
+        #[case::QuoteId_Float(QuoteId::Float, 2u8)]
+        #[case::QuoteId_Depth(QuoteId::Depth, 3u8)]
+        #[case::QuoteId_Cross(QuoteId::Cross, 4u8)]
+        #[case::QuoteId_Unknown1(QuoteId::Unknown1, 5u8)]
+        #[case::QuoteId_Unknown2(QuoteId::Unknown2, 6u8)]
+
+        #[case::MarginMode_Forex(MarginMode::Forex, 101u8)]
+        #[case::MarginMode_CFDLeveraged(MarginMode::CFDLeveraged, 102u8)]
+        #[case::MarginMode_CFD(MarginMode::CFD, 103u8)]
+        #[case::MarginMode_Unknown1(MarginMode::Unknown1, 104u8)]
+
+        #[case::ProfitMode_Forex(ProfitMode::Forex, 5u8)]
+        #[case::ProfitMode_CFD(ProfitMode::Cfd, 6u8)]
+
+        #[case::ImpactLevel_Low(ImpactLevel::Low, 1u8)]
+        #[case::ImpactLevel_Medium(ImpactLevel::Medium, 2u8)]
+        #[case::ImpactLevel_High(ImpactLevel::High, 3u8)]
+
+        #[case::TimePeriod_PeriodM1(TimePeriod::PeriodM1, 1u16)]
+        #[case::TimePeriod_PeriodM5(TimePeriod::PeriodM5, 5u16)]
+        #[case::TimePeriod_PeriodM15(TimePeriod::PeriodM15, 15u16)]
+        #[case::TimePeriod_PeriodM30(TimePeriod::PeriodM30, 30u16)]
+        #[case::TimePeriod_PeriodH1(TimePeriod::PeriodH1, 60u16)]
+        #[case::TimePeriod_PeriodH4(TimePeriod::PeriodH4, 240u16)]
+        #[case::TimePeriod_PeriodD1(TimePeriod::PeriodD1, 1440u16)]
+        #[case::TimePeriod_PeriodW1(TimePeriod::PeriodW1, 10080u16)]
+        #[case::TimePeriod_PeriodMN1(TimePeriod::PeriodMN1, 43200u16)]
+
+        #[case::TradingAction_Buy(TradingAction::Buy, 0u8)]
+        #[case::TradingAction_Sell(TradingAction::Sell, 1u8)]
+
+        #[case::TradingCommand_Buy(TradingCommand::Buy, 0u8)]
+        #[case::TradingCommand_Sell(TradingCommand::Sell, 1u8)]
+        #[case::TradingCommand_BuyLimit(TradingCommand::BuyLimit, 2u8)]
+        #[case::TradingCommand_SellLimit(TradingCommand::SellLimit, 3u8)]
+        #[case::TradingCommand_BuyStop(TradingCommand::BuyStop, 4u8)]
+        #[case::TradingCommand_SellStop(TradingCommand::SellStop, 5u8)]
+        #[case::TradingCommand_Balance(TradingCommand::Balance, 6u8)]
+        #[case::TradingCommand_Credit(TradingCommand::Credit, 7u8)]
+
+        #[case::DayOfWeek_Monday(DayOfWeek::Monday, 1u8)]
+        #[case::DayOfWeek_Tuesday(DayOfWeek::Tuesday, 2u8)]
+        #[case::DayOfWeek_Wednesday(DayOfWeek::Wednesday, 3u8)]
+        #[case::DayOfWeek_Thursday(DayOfWeek::Thursday, 4u8)]
+        #[case::DayOfWeek_Friday(DayOfWeek::Friday, 5u8)]
+        #[case::DayOfWeek_Saturday(DayOfWeek::Saturday, 6u8)]
+        #[case::DayOfWeek_Sunday(DayOfWeek::Sunday, 7u8)]
+
+        #[case::TransactionStatus_Error(TransactionStatus::Error, 0u8)]
+        #[case::TransactionStatus_Pending(TransactionStatus::Pending, 1u8)]
+        #[case::TransactionStatus_Accepted(TransactionStatus::Accepted, 3u8)]
+        #[case::TransactionStatus_Rejected(TransactionStatus::Rejected, 4u8)]
+
+        #[case::TransactionType_Open(TransactionType::Open, 0u8)]
+        #[case::TransactionType_Pending(TransactionType::Pending, 1u8)]
+        #[case::TransactionType_Close(TransactionType::Close, 2u8)]
+        #[case::TransactionType_Modify(TransactionType::Modify, 3u8)]
+        #[case::TransactionType_Delete(TransactionType::Delete, 4u8)]
+        fn to_primitive<T, P: From<T> + PartialEq + Debug>(#[case] val: T, #[case] expected_value: P) {
+            let result: P = val.into();
+            assert_eq!(result, expected_value)
+        }
+    }
 }
