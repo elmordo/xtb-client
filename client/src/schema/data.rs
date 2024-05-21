@@ -923,9 +923,9 @@ pub struct TradeTransactionStatusRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TradeTransactionStatusResponse {
     /// Price in base currency
-    pub ask: f64,
+    pub ask: Decimal,
     /// Price in base currency
-    pub bid: f64,
+    pub bid: Decimal,
     /// The value the customer may provide in order to retrieve it later
     pub custom_comment: String,
     /// Can be null
@@ -949,17 +949,17 @@ pub struct StreamGetBalanceUnsubscribe;
 #[serde(rename_all = "camelCase")]
 pub struct StreamGetBalanceData {
     /// Balance in account currency
-    pub balance: f64,
+    pub balance: Decimal,
     /// Credit in account currency
-    pub credit: f64,
+    pub credit: Decimal,
     /// Sum of balance and all profits in account currency
-    pub equity: f64,
+    pub equity: Decimal,
     /// Margin requirements
-    pub margin: f64,
+    pub margin: Decimal,
     /// Free margin
-    pub margin_free: f64,
+    pub margin_free: Decimal,
     /// Margin level percentage
-    pub margin_level: f64,
+    pub margin_level: Decimal,
 }
 
 
@@ -986,23 +986,23 @@ pub struct StreamGetCandlesUnsubscribe {
 #[serde(rename_all = "camelCase")]
 pub struct StreamGetCandlesData {
     /// Close price in base currency
-    pub close: f64,
+    pub close: Decimal,
     /// Candle start time in CET time zone (Central European Time)
     pub ctm: u64,
     /// String representation of the ctm field
     pub ctm_string: String,
     /// Highest value in the given period in base currency
-    pub high: f64,
+    pub high: Decimal,
     /// Lowest value in the given period in base currency
-    pub low: f64,
+    pub low: Decimal,
     /// Open price in base currency
-    pub open: f64,
+    pub open: Decimal,
     /// Source of price
     pub quote_id: QuoteId,
     /// Symbol
     pub symbol: String,
     /// Volume in lots
-    pub vol: f64,
+    pub vol: Decimal,
 }
 
 
@@ -1063,7 +1063,7 @@ pub struct StreamGetProfitData {
     /// Position number
     pub position: i32,
     /// Profit in account currency
-    pub profit: f64,
+    pub profit: Decimal,
 }
 
 
@@ -1094,25 +1094,25 @@ pub struct StreamGetTickPricesUnsubscribe {
 #[serde(rename_all = "camelCase")]
 pub struct StreamGetTickPricesData {
     /// Ask price in base currency
-    pub ask: f64,
+    pub ask: Decimal,
     /// Number of available lots to buy at given price
     pub ask_volume: Option<i32>,
     /// Bid price in base currency
-    pub bid: f64,
+    pub bid: Decimal,
     /// Number of available lots to sell at given price
     pub bid_volume: Option<i32>,
     /// The highest price of the day in base currency
-    pub high: f64,
+    pub high: Decimal,
     /// Price level
     pub level: i32,
     /// The lowest price of the day in base currency
-    pub low: f64,
+    pub low: Decimal,
     /// Source of price
     pub quote_id: QuoteId,
     /// The difference between raw ask and bid prices
-    pub spread_raw: f64,
+    pub spread_raw: Decimal,
     /// Spread representation
-    pub spread_table: f64,
+    pub spread_table: Decimal,
     /// Financial instrument symbol
     pub symbol: String,
     /// Time when the information was updated
@@ -1133,7 +1133,7 @@ pub struct StreamGetTradesUnsubscribe;
 pub struct StreamGetTradesData {
     /// Close price in base currency
     #[serde(rename = "close_price")]
-    pub close_price: f64,
+    pub close_price: Decimal,
     /// Close time, null if order is not closed
     #[serde(rename = "close_time")]
     pub close_time: Option<u64>,
@@ -1144,7 +1144,7 @@ pub struct StreamGetTradesData {
     /// Comment
     pub comment: String,
     /// Commission in account currency, null if not applicable
-    pub commission: Option<f64>,
+    pub commission: Option<Decimal>,
     /// Custom comment
     pub custom_comment: String,
     /// Number of decimal places
@@ -1153,12 +1153,12 @@ pub struct StreamGetTradesData {
     pub expiration: Option<u64>,
     /// Margin rate
     #[serde(rename = "margin_rate")]
-    pub margin_rate: f64,
+    pub margin_rate: Decimal,
     /// Trailing offset
     pub offset: i32,
     /// Open price in base currency
     #[serde(rename = "open_price")]
-    pub open_price: f64,
+    pub open_price: Decimal,
     /// Open time
     #[serde(rename = "open_time")]
     pub open_time: u64,
@@ -1169,21 +1169,21 @@ pub struct StreamGetTradesData {
     /// Position number (if type is 0 and 2) or transaction parameter (if type is 1)
     pub position: i32,
     /// Profit, null unless the trade is closed (type=2) or opened (type=0)
-    pub profit: Option<f64>,
+    pub profit: Option<Decimal>,
     /// Stop loss amount, zero if not set (in base currency)
-    pub sl: f64,
+    pub sl: Decimal,
     /// Trade state, should be used for detecting pending order's cancellation
     pub state: TradeStatus,
     /// Storage
-    pub storage: f64,
+    pub storage: Decimal,
     /// Financial instrument symbol
     pub symbol: String,
     /// Take profit amount, zero if not set (in base currency)
-    pub tp: f64,
+    pub tp: Decimal,
     /// Type
     pub type_: TransactionType,
     /// Volume in lots
-    pub volume: f64,
+    pub volume: Decimal,
 }
 
 
@@ -1206,7 +1206,7 @@ pub struct StreamGetTradeStatusData {
     /// Unique order number
     pub order: i32,
     /// Price in base currency
-    pub price: f64,
+    pub price: Decimal,
     /// Request status code
     pub request_status: TransactionStatus,
 }
