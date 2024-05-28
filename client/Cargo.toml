@@ -26,6 +26,7 @@ tokio-tungstenite = { version = "^0.21.0", features = ["rustls-tls-native-roots"
 url = "^2.5.0"
 futures-util = "^0.3.30"
 log = "0.4.21"
+num_enum = "0.7.2"
 
 [dev-dependencies]
 rstest = "^0.18.2"
