@@ -358,7 +358,7 @@ pub struct GetIbsHistoryRequest {
 
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct GetIbsHistoryResponse(Vec<IBRecord>);
+pub struct GetIbsHistoryResponse(pub Vec<IBRecord>);
 
 
 impl Deref for GetIbsHistoryResponse {
@@ -465,7 +465,7 @@ pub struct GetNewsRequest {
 
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct GetNewsResponse(Vec<NewsBodyRecord>);
+pub struct GetNewsResponse(pub Vec<NewsBodyRecord>);
 
 impl Deref for GetNewsResponse {
     type Target = Vec<NewsBodyRecord>;
@@ -550,7 +550,7 @@ pub struct GetServerTimeResponse {
 pub struct GetStepRulesRequest;
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct GetStepRulesResponse(Vec<StepRuleRecord>);
+pub struct GetStepRulesResponse(pub Vec<StepRuleRecord>);
 
 
 impl Deref for GetStepRulesResponse {
@@ -670,7 +670,7 @@ pub struct GetTradeRecordsRequest {
 
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct GetTradeRecordsResponse(Vec<TradeRecord>);
+pub struct GetTradeRecordsResponse(pub Vec<TradeRecord>);
 
 
 impl Deref for GetTradeRecordsResponse {
@@ -795,7 +795,7 @@ pub struct GetTradingHoursRequest {
 
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct GetTradingHoursResponse(Vec<TradingHoursRecord>);
+pub struct GetTradingHoursResponse(pub Vec<TradingHoursRecord>);
 
 
 impl Deref for GetTradingHoursResponse {
