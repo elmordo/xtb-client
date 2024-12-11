@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Enum representing various types
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum QuoteId {
     /// fixed
@@ -24,7 +24,7 @@ pub enum QuoteId {
 
 
 /// Enum representing different margin modes
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum MarginMode {
     /// Forex
@@ -40,7 +40,7 @@ pub enum MarginMode {
 
 
 /// Enum representing different profit modes
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum ProfitMode {
     /// FOREX
@@ -52,7 +52,7 @@ pub enum ProfitMode {
 
 
 /// Expected impact level of event in calendar
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize, Deserialize, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum ImpactLevel {
     /// low
@@ -69,7 +69,7 @@ pub enum ImpactLevel {
 
 
 /// Enum representing different time periods
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u16)]
 pub enum TimePeriod {
     /// 1 minute
@@ -95,7 +95,7 @@ pub enum TimePeriod {
 
 
 /// Enum representing types of trading actions
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum TradingAction {
     /// Buy
@@ -107,7 +107,7 @@ pub enum TradingAction {
 
 
 /// Enum representing different types of trading actions
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum TradingCommand {
     /// Buy
@@ -129,7 +129,7 @@ pub enum TradingCommand {
     Credit = 7,
 }
 
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum DayOfWeek {
     /// Monday
@@ -150,7 +150,7 @@ pub enum DayOfWeek {
 }
 
 
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum TransactionStatus {
     /// Error
@@ -165,7 +165,7 @@ pub enum TransactionStatus {
 }
 
 
-#[derive(Default, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize_repr, Deserialize_repr, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum TransactionType {
     /// Order open, used for opening orders
@@ -181,7 +181,7 @@ pub enum TransactionType {
     Delete = 4,
 }
 
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TradeStatus {
     /// Modified
