@@ -262,6 +262,21 @@ pub struct RateInfoRecord {
 }
 
 
+impl From<StreamGetCandlesData> for RateInfoRecord {
+    fn from(value: StreamGetCandlesData) -> Self {
+        Self {
+            close: value.close,
+            ctm: value.ctm,
+            ctm_string: value.ctm_string,
+            high: value.high,
+            low: value.low,
+            open: value.open,
+            vol: value.vol,
+        }
+    }
+}
+
+
 /// Structure representing chart range details
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Setters)]
 #[setters(into, strip_option, prefix = "with_")]
