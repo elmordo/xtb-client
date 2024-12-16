@@ -1246,6 +1246,53 @@ mod tests {
         }
     }
 
+    mod conversions {
+        use crate::schema::{QuoteId, RateInfoRecord, StreamGetCandlesData};
+
+        fn make_sgcd() -> StreamGetCandlesData {
+            StreamGetCandlesData::default()
+                .with_close(20)
+                .with_ctm(123u64)
+                .with_ctm_string("some_string")
+                .with_high(40)
+                .with_low(10)
+                .with_open(20)
+                .with_quote_id(QuoteId::Cross)
+                .with_symbol("EURUSD".to_owned())
+                .with_vol(50)
+        }
+
+        /// Convert `StreamGetCandlesData` to the `RateInfoRecord` using `From` trait
+        #[test]
+        fn convert_sgcd_to_rir_from() {
+            let orig = make_sgcd();
+            let rir = RateInfoRecord::from(orig.clone());
+
+            assert_eq!(rir.close, orig.close);
+            assert_eq!(rir.ctm, orig.ctm);
+            assert_eq!(rir.ctm_string, orig.ctm_string);
+            assert_eq!(rir.high, orig.high);
+            assert_eq!(rir.low, orig.low);
+            assert_eq!(rir.open, orig.open);
+            assert_eq!(rir.vol, orig.vol);
+        }
+
+        /// Convert `StreamGetCandlesData` to the `RateInfoRecord` using `Into` trait
+        #[test]
+        fn convert_sgcd_to_rir_into() {
+            let orig = make_sgcd();
+            let rir: RateInfoRecord = orig.clone().into();
+
+            assert_eq!(rir.close, orig.close);
+            assert_eq!(rir.ctm, orig.ctm);
+            assert_eq!(rir.ctm_string, orig.ctm_string);
+            assert_eq!(rir.high, orig.high);
+            assert_eq!(rir.low, orig.low);
+            assert_eq!(rir.open, orig.open);
+            assert_eq!(rir.vol, orig.vol);
+        }
+    }
+
     mod serialize_deserialize {
         use std::fmt::Debug;
         use std::ops::Deref;
